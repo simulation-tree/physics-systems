@@ -6,7 +6,7 @@ using Unmanaged;
 
 namespace Physics.Systems
 {
-    public struct DemoPoseIntegratorCallbacks : IPoseIntegratorCallbacks
+    public struct PoseIntegratorCallbacks : IPoseIntegratorCallbacks
     {
         /// <summary>
         /// Gravity to apply to dynamic bodies in the simulation.
@@ -54,7 +54,7 @@ namespace Physics.Systems
         /// <param name="gravity">Gravity to apply to dynamic bodies in the simulation.</param>
         /// <param name="linearDamping">Fraction of dynamic body linear velocity to remove per unit of time. Values range from 0 to 1. 0 is fully undamped, while values very close to 1 will remove most velocity.</param>
         /// <param name="angularDamping">Fraction of dynamic body angular velocity to remove per unit of time. Values range from 0 to 1. 0 is fully undamped, while values very close to 1 will remove most velocity.</param>
-        public DemoPoseIntegratorCallbacks(Allocation gravity, float linearDamping = .03f, float angularDamping = .03f) : this()
+        public PoseIntegratorCallbacks(Allocation gravity, float linearDamping = .03f, float angularDamping = .03f) : this()
         {
             this.gravity = gravity;
             LinearDamping = linearDamping;

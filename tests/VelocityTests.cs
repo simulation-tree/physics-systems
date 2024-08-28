@@ -5,7 +5,6 @@ using Simulation;
 using System;
 using System.Numerics;
 using Transforms;
-using Transforms.Components;
 using Transforms.Events;
 using Transforms.Systems;
 using Unmanaged;
@@ -211,6 +210,80 @@ namespace Physics.Tests
             Assert.That(center.X, Is.EqualTo(1.4142f).Within(0.01f));
             Assert.That(center.Y, Is.EqualTo(1f).Within(0.01f));
             Assert.That(center.Z, Is.EqualTo(0f).Within(0.01f));
+        }
+    }
+
+    public class RaycastTests
+    {
+        [TearDown]
+        public void CleanUp()
+        {
+            Allocations.ThrowIfAny();
+        }
+
+        private void Simulate(World world, TimeSpan delta)
+        {
+            world.Submit(new TransformUpdate());
+            world.Submit(new PhysicsUpdate(delta));
+            world.Submit(new TransformUpdate());
+            world.Poll();
+        }
+
+        [Test]
+        public void RaycastWithResults()
+        {
+            using World world = new();
+            using TransformSystem transforms = new(world);
+            using PhysicsSystem physics = new(world);
+
+            CubeShape cubeShape = new(world, 0.5f);
+            Body cubeBody = new(world, cubeShape, IsBody.Type.Dynamic);
+            Transform cubeTransform = cubeBody;
+            cubeTransform.LocalPosition = new(0, 0, 5);
+
+            Raycaster ray = new(world, new(0, 0, 0), Quaternion.Identity);
+
+            Simulate(world, TimeSpan.FromSeconds(0.1f));
+
+            ReadOnlySpan<RaycastHit> hits = ray.Hits;
+            Assert.That(hits.Length, Is.EqualTo(1));
+            RaycastHit hit = hits[0];
+            Assert.That(hit.distance, Is.EqualTo(4.5f).Within(0.1f));
+
+            cubeTransform.LocalPosition = new(0, 0, 10);
+
+            Simulate(world, TimeSpan.FromSeconds(0.1f));
+
+            hits = ray.Hits;
+            Assert.That(hits.Length, Is.EqualTo(1));
+            hit = hits[0];
+            Assert.That(hit.distance, Is.EqualTo(9.5f).Within(0.1f));
+
+            cubeTransform.LocalPosition = new(5, 0, 0);
+
+            Simulate(world, TimeSpan.FromSeconds(0.1f));
+
+            hits = ray.Hits;
+            Assert.That(hits.Length, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void DontPerformDisabledRaycasts()
+        {
+            using World world = new();
+            using TransformSystem transforms = new(world);
+            using PhysicsSystem physics = new(world);
+            CubeShape cubeShape = new(world, 0.5f);
+            Body cubeBody = new(world, cubeShape, IsBody.Type.Dynamic);
+            Transform cubeTransform = cubeBody;
+            cubeTransform.LocalPosition = new(0, 0, 5);
+            Raycaster ray = new(world, new(0, 0, 0), Quaternion.Identity);
+            ray.IsEnabled = false;
+
+            Simulate(world, TimeSpan.FromSeconds(0.1f));
+
+            ReadOnlySpan<RaycastHit> hits = ray.Hits;
+            Assert.That(hits.Length, Is.EqualTo(0));
         }
     }
 }

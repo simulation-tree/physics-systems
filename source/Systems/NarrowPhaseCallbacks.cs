@@ -4,13 +4,13 @@ using BepuPhysics.Constraints;
 
 namespace Physics.Systems
 {
-    public struct DemoNarrowPhaseCallbacks : INarrowPhaseCallbacks
+    public struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
     {
         public SpringSettings ContactSpringiness;
         public float MaximumRecoveryVelocity;
         public float FrictionCoefficient;
 
-        public DemoNarrowPhaseCallbacks(SpringSettings contactSpringiness, float maximumRecoveryVelocity = 2f, float frictionCoefficient = 1f)
+        public NarrowPhaseCallbacks(SpringSettings contactSpringiness, float maximumRecoveryVelocity = 2f, float frictionCoefficient = 1f)
         {
             ContactSpringiness = contactSpringiness;
             MaximumRecoveryVelocity = maximumRecoveryVelocity;
