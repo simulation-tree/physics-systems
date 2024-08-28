@@ -35,7 +35,7 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            Shape cubeShape = new(world, new CubeShape(0.5f));
+            CubeShape cubeShape = new(world, 0.5f);
             Body rock = new(world, cubeShape, IsBody.Type.Dynamic);
             rock.Velocity = new(1, 0, 0);
 
@@ -54,28 +54,35 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            Shape cubeShape = new(world, new CubeShape(0.5f));
+            CubeShape cubeShape = new(world, 0.5f);
             Body rock = new(world, cubeShape, IsBody.Type.Dynamic);
-            GravitySource directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
-
-            Simulate(world, TimeSpan.FromSeconds(1f));
-            Simulate(world, TimeSpan.FromSeconds(1f));
-
+            DirectionalGravity directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
             Transform rockTransform = rock;
-            Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-19.6133f).Within(0.2f));
+
+            Simulate(world, TimeSpan.FromSeconds(1f));
+
+            Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-9.806f).Within(0.1f));
+
+            Simulate(world, TimeSpan.FromSeconds(1f));
+
+            Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
 
             Body otherRock = new(world, cubeShape, IsBody.Type.Dynamic);
             Transform otherRockTransform = otherRock;
             otherRockTransform.LocalPosition = new(2, 0, 0);
 
-            Simulate(world, TimeSpan.FromSeconds(0.2f));
-            Simulate(world, TimeSpan.FromSeconds(0.2f));
-            Simulate(world, TimeSpan.FromSeconds(0.2f));
-            Simulate(world, TimeSpan.FromSeconds(0.2f));
-            Simulate(world, TimeSpan.FromSeconds(0.2f));
+            //Simulate(world, TimeSpan.FromSeconds(0.2f));
+            //Simulate(world, TimeSpan.FromSeconds(0.2f));
+            //Simulate(world, TimeSpan.FromSeconds(0.2f));
+            //Simulate(world, TimeSpan.FromSeconds(0.2f));
+            //Simulate(world, TimeSpan.FromSeconds(0.2f));
             Simulate(world, TimeSpan.FromSeconds(1f));
 
-            Assert.That(otherRockTransform.WorldPosition.Y, Is.EqualTo(-19.6133f).Within(0.2f));
+            Assert.That(otherRockTransform.WorldPosition.Y, Is.EqualTo(-9.806f).Within(0.1f));
+
+            Simulate(world, TimeSpan.FromSeconds(1f));
+
+            Assert.That(otherRockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
         }
 
         [Test]
@@ -85,11 +92,11 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            Shape cubeShape = new(world, new CubeShape(0.5f));
+            CubeShape cubeShape = new(world, 0.5f);
             Body rock = new(world, cubeShape, IsBody.Type.Dynamic);
             rock.Velocity = new(4, 4, 0);
 
-            GravitySource directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
+            DirectionalGravity directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
 
             Simulate(world, TimeSpan.FromSeconds(0.2f));
             Simulate(world, TimeSpan.FromSeconds(0.2f));
@@ -99,7 +106,7 @@ namespace Physics.Tests
 
             Transform rockTransform = rock;
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(4f).Within(0.1f));
-            Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-0.98f).Within(0.1f));
+            Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-1.884f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Z, Is.EqualTo(0).Within(0.1f));
         }
 
@@ -110,12 +117,12 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            GravitySource directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
-            Shape sphereShape = new(world, new SphereShape(0.5f));
+            DirectionalGravity directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
+            SphereShape sphereShape = new(world, 0.5f);
             Body ball = new(world, sphereShape, IsBody.Type.Dynamic);
             Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
-            Shape floorShape = new(world, new CubeShape(5f, 0.5f, 5f));
+            CubeShape floorShape = new(world, 5f, 0.5f, 5f);
             Body floor = new(world, floorShape, IsBody.Type.Static);
 
             Simulate(world, TimeSpan.FromSeconds(4f));
@@ -135,13 +142,13 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            GravitySource directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
-            Shape sphereShape = new(world, new SphereShape(0.5f));
+            DirectionalGravity directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
+            SphereShape sphereShape = new(world, 0.5f);
             Body ball = new(world, sphereShape, IsBody.Type.Dynamic);
             Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
 
-            Shape platformShape = new(world, new CubeShape(5f, 0.5f, 5f));
+            CubeShape platformShape = new(world, 5f, 0.5f, 5f);
             Body platform = new(world, platformShape, IsBody.Type.Kinematic, new(0, 1, 0)); //platform moves up
 
             Simulate(world, TimeSpan.FromSeconds(4f));
@@ -161,7 +168,7 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            Shape cubeShape = new(world, new CubeShape(0.5f));
+            CubeShape cubeShape = new(world, 0.5f);
             Body cubeBody = new(world, cubeShape, IsBody.Type.Dynamic);
             Entity cubeEntity = cubeBody;
             Simulate(world, TimeSpan.FromSeconds(0.1f));
