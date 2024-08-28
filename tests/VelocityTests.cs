@@ -36,7 +36,7 @@ namespace Physics.Tests
 
             CubeShape cubeShape = new(world, 0.5f);
             Body rock = new(world, cubeShape, IsBody.Type.Dynamic);
-            rock.Velocity = new(1, 0, 0);
+            rock.LinearVelocity = new(1, 0, 0);
 
             Simulate(world, TimeSpan.FromSeconds(1f));
 
@@ -93,7 +93,7 @@ namespace Physics.Tests
 
             CubeShape cubeShape = new(world, 0.5f);
             Body rock = new(world, cubeShape, IsBody.Type.Dynamic);
-            rock.Velocity = new(4, 4, 0);
+            rock.LinearVelocity = new(4, 4, 0);
 
             DirectionalGravity directionalGravity = new(world, Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI * 0.5f));
 

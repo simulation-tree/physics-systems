@@ -93,10 +93,38 @@ namespace Physics.Systems
 
         private void CreateAndDestroyPhysicsObjects()
         {
+            //remove shapes and bodies that arent pointing to entities anymore
+            using UnmanagedList<eint> bodiesRemoved = new();
+            foreach (eint bodyEntity in bodies.Keys)
+            {
+                if (!world.ContainsEntity(bodyEntity))
+                {
+                    CompiledBody body = bodies[bodyEntity];
+                    if (body.type == IsBody.Type.Dynamic || body.type == IsBody.Type.Kinematic)
+                    {
+                        handleToBody.Remove((body.DynamicBody.Value, false));
+                        physicsSimulation.Bodies.Remove(body.DynamicBody);
+                    }
+                    else if (body.type == IsBody.Type.Static)
+                    {
+                        handleToBody.Remove((body.StaticBody.Value, true));
+                        physicsSimulation.Statics.Remove(body.StaticBody);
+                    }
+
+                    physicsObjectState[(uint)bodyEntity] = default;
+                    body.Dispose();
+                    bodiesRemoved.Add(bodyEntity);
+                }
+            }
+
+            foreach (eint bodyEntity in bodiesRemoved)
+            {
+                bodies.Remove(bodyEntity);
+            }
+
             physicsObjectState.Resize(world.MaxEntityValue + 1);
-            using UnmanagedList<int> usedShapeHashes = new();
-            using UnmanagedList<eint> usedBodies = new();
             bodyQuery.Update();
+            using UnmanagedList<int> usedShapes = new();
             foreach (var r in bodyQuery)
             {
                 eint bodyEntity = r.entity;
@@ -137,7 +165,7 @@ namespace Physics.Systems
                         newShape = true;
                     }
 
-                    usedShapeHashes.Add(shapeHash);
+                    usedShapes.Add(shapeHash);
 
                     //make sure a physics body exists for this combination of (shape, type)
                     Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
@@ -148,6 +176,15 @@ namespace Physics.Systems
                     {
                         compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
                         bodies.Add(bodyEntity, compiledBody);
+
+                        if (type == IsBody.Type.Static)
+                        {
+                            handleToBody.Add((compiledBody.StaticBody.Value, true), bodyEntity);
+                        }
+                        else
+                        {
+                            handleToBody.Add((compiledBody.DynamicBody.Value, false), bodyEntity);
+                        }
                     }
                     else if (compiledBody.version != bodyComponent.version || compiledBody.type != type || newShape)
                     {
@@ -165,48 +202,43 @@ namespace Physics.Systems
                         compiledBody.Dispose();
                         compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
                         bodies[bodyEntity] = compiledBody;
-                    }
 
-                    usedBodies.Add(bodyEntity);
+                        if (type == IsBody.Type.Static)
+                        {
+                            handleToBody.Add((compiledBody.StaticBody.Value, true), bodyEntity);
+                        }
+                        else
+                        {
+                            handleToBody.Add((compiledBody.DynamicBody.Value, false), bodyEntity);
+                        }
+                    }
 
                     //copy values from entity onto physics object (if different from last known state)
                     if (type == IsBody.Type.Dynamic || type == IsBody.Type.Kinematic)
                     {
                         (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) = physicsObjectState[(uint)bodyEntity];
                         BodyReference bodyReference = physicsSimulation.Bodies[compiledBody.DynamicBody];
-                        ref RigidPose pose = ref bodyReference.Pose;
-                        if (position != desiredWorldPosition)
+                        if (position != desiredWorldPosition || rotation != desiredWorldRotation)
                         {
+                            ref RigidPose pose = ref bodyReference.Pose;
                             pose.Position = desiredWorldPosition;
-                            bodyReference.Awake = true;
-                        }
-
-                        if (rotation != desiredWorldRotation)
-                        {
                             pose.Orientation = desiredWorldRotation;
                             bodyReference.Awake = true;
                         }
 
-                        ref BodyVelocity velocity = ref bodyReference.Velocity;
                         Vector3 linearVelocity = world.GetComponent(bodyEntity, new LinearVelocity()).value; //optional
-                        if (linear != linearVelocity)
-                        {
-                            velocity.Linear = linearVelocity;
-                            bodyReference.Awake = true;
-                        }
-
                         Vector3 angularVelocity = world.GetComponent(bodyEntity, new AngularVelocity()).value; //optional
-                        if (angular != angularVelocity)
+                        if (linear != linearVelocity || angular != angularVelocity)
                         {
+                            ref BodyVelocity velocity = ref bodyReference.Velocity;
+                            velocity.Linear = linearVelocity;
                             velocity.Angular = angularVelocity;
                             bodyReference.Awake = true;
                         }
-
-                        handleToBody.AddOrSet((compiledBody.DynamicBody.Value, false), bodyEntity);
                     }
                     else if (type == IsBody.Type.Static)
                     {
-                        ref (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) state = ref physicsObjectState[(uint)bodyEntity];
+                        (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) state = physicsObjectState[(uint)bodyEntity];
                         StaticReference staticReference = physicsSimulation.Statics[compiledBody.StaticBody];
                         if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                         {
@@ -216,9 +248,8 @@ namespace Physics.Systems
                             newDescription.Pose.Position = desiredWorldPosition;
                             newDescription.Pose.Orientation = desiredWorldRotation;
                             staticReference.ApplyDescription(newDescription);
+                            physicsObjectState[(uint)bodyEntity] = state;
                         }
-
-                        handleToBody.AddOrSet((compiledBody.StaticBody.Value, true), bodyEntity);
                     }
                 }
                 else
@@ -227,66 +258,37 @@ namespace Physics.Systems
                 }
             }
 
-            //remove bodies that are no longer used
-            using UnmanagedList<eint> bodiesToRemove = new();
-            foreach (eint bodyEntity in bodies.Keys)
-            {
-                if (!usedBodies.Contains(bodyEntity))
-                {
-                    bodiesToRemove.Add(bodyEntity);
-                }
-            }
-
-            foreach (eint bodyEntity in bodiesToRemove)
-            {
-                CompiledBody body = bodies.Remove(bodyEntity);
-                if (body.type == IsBody.Type.Dynamic || body.type == IsBody.Type.Kinematic)
-                {
-                    handleToBody.Remove((body.DynamicBody.Value, false));
-                    physicsSimulation.Bodies.Remove(body.DynamicBody);
-                }
-                else if (body.type == IsBody.Type.Static)
-                {
-                    handleToBody.Remove((body.StaticBody.Value, true));
-                    physicsSimulation.Statics.Remove(body.StaticBody);
-                }
-
-                physicsObjectState[(uint)bodyEntity] = default;
-                body.Dispose();
-            }
-
             //remove shapes that are no longer used
-            using UnmanagedList<int> hashesToRemove = new();
+            using UnmanagedList<int> shapesToRemove = new();
             foreach (int shapeHash in shapes.Keys)
             {
-                if (!usedShapeHashes.Contains(shapeHash))
+                if (!usedShapes.Contains(shapeHash))
                 {
-                    hashesToRemove.Add(shapeHash);
+                    shapesToRemove.Add(shapeHash);
                 }
             }
 
-            foreach (int shapeHash in hashesToRemove)
+            foreach (int shapeHash in shapesToRemove)
             {
                 CompiledShape shape = shapes.Remove(shapeHash);
-                physicsSimulation.Shapes.RemoveAndDispose(shape.shapeIndex, bufferPool);
+                physicsSimulation.Shapes.Remove(shape.shapeIndex);
                 shape.Dispose();
             }
         }
 
         private void CopyPhysicsObjectStateToEntities()
         {
-            foreach (var x in bodyQuery)
+            foreach (eint bodyEntity in bodies.Keys)
             {
-                eint bodyEntity = x.entity;
-                LocalToWorld ltw = x.Component2;
-                Quaternion worldRotation = x.Component3.value;
                 CompiledBody body = bodies[bodyEntity];
-                eint shapeEntity = world.GetReference(bodyEntity, x.Component1.shapeReference);
+                rint shapeReference = world.GetComponent<IsBody>(bodyEntity).shapeReference;
+                eint shapeEntity = world.GetReference(bodyEntity, shapeReference);
                 if (!world.TryGetComponent(shapeEntity, out IsShape shapeComponent))
                 {
                     continue;
                 }
 
+                LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity);
                 Vector3 localOffset = shapeComponent.offset;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
                 //worldOffset = default;
@@ -302,21 +304,31 @@ namespace Physics.Systems
                     //copy into individual local components
                     BodyReference bodyReference = physicsSimulation.Bodies[body.DynamicBody];
                     RigidPose pose = bodyReference.Pose;
-                    ref Position localPosition = ref world.TryGetComponentRef<Position>(bodyEntity, out bool contains);
-                    if (!contains)
+                    if (!world.ContainsComponent<Position>(bodyEntity))
                     {
-                        localPosition = ref world.AddComponentRef<Position>(bodyEntity);
+                        world.AddComponent<Position>(bodyEntity);
                     }
 
+                    if (!world.ContainsComponent<Rotation>(bodyEntity))
+                    {
+                        world.AddComponent<Rotation>(bodyEntity);
+                    }
+
+                    if (!world.ContainsComponent<LinearVelocity>(bodyEntity))
+                    {
+                        world.AddComponent<LinearVelocity>(bodyEntity);
+                    }
+
+                    if (!world.ContainsComponent<AngularVelocity>(bodyEntity))
+                    {
+                        world.AddComponent<AngularVelocity>(bodyEntity);
+                    }
+
+                    ref Position localPosition = ref world.GetComponentRef<Position>(bodyEntity);
                     Vector3 finalWorldPosition = pose.Position - worldOffset;
                     localPosition.value = Vector3.Transform(finalWorldPosition, wtl);
 
-                    ref Rotation localRotation = ref world.TryGetComponentRef<Rotation>(bodyEntity, out contains);
-                    if (!contains)
-                    {
-                        localRotation = ref world.AddComponentRef<Rotation>(bodyEntity);
-                    }
-
+                    ref Rotation localRotation = ref world.GetComponentRef<Rotation>(bodyEntity);
                     Quaternion finalWorldRotation = pose.Orientation;
                     if (bodyParent != default)
                     {
@@ -327,21 +339,11 @@ namespace Physics.Systems
                         localRotation.value = finalWorldRotation;
                     }
 
-                    ref LinearVelocity linearVelocity = ref world.TryGetComponentRef<LinearVelocity>(bodyEntity, out contains);
-                    if (!contains)
-                    {
-                        linearVelocity = ref world.AddComponentRef<LinearVelocity>(bodyEntity);
-                    }
-
+                    ref LinearVelocity linearVelocity = ref world.GetComponentRef<LinearVelocity>(bodyEntity);
                     BodyVelocity velocity = bodyReference.Velocity;
                     linearVelocity.value = velocity.Linear;
 
-                    ref AngularVelocity angularVelocity = ref world.TryGetComponentRef<AngularVelocity>(bodyEntity, out contains);
-                    if (!contains)
-                    {
-                        angularVelocity = ref world.AddComponentRef<AngularVelocity>(bodyEntity);
-                    }
-
+                    ref AngularVelocity angularVelocity = ref world.GetComponentRef<AngularVelocity>(bodyEntity);
                     angularVelocity.value = velocity.Angular;
                     physicsObjectState[(uint)bodyEntity] = (finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
 
@@ -382,20 +384,20 @@ namespace Physics.Systems
 
         private void PerformRaycasts(TimeSpan delta)
         {
-            raycasterQuery.Update();
+            using UnmanagedList<(bool, int, float, Vector3)> hits = new();
             Span<RaycastHit> raycastHits = stackalloc RaycastHit[32];
+            raycasterQuery.Update();
             foreach (var r in raycasterQuery)
             {
                 eint raycastEntity = r.entity;
                 if (!world.IsEnabled(raycastEntity)) continue;
 
-                ref IsRaycaster component = ref r.Component1;
+                IsRaycaster component = r.Component1;
                 LocalToWorld ltw = r.Component2;
                 Vector3 worldPosition = ltw.Position;
                 Quaternion worldRotation = r.Component3.value;
                 Vector3 worldForward = Vector3.Transform(Vector3.UnitZ, worldRotation);
 
-                using UnmanagedList<(bool, int, float, Vector3)> hits = new();
                 RaycastHandler handler = new(hits);
                 physicsSimulation.RayCast(worldPosition, worldForward, component.maxDistance, ref handler);
                 int hitCount = 0;

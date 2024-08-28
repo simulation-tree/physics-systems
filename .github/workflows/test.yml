@@ -1,0 +1,90 @@
+name: Test
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: physics-systems/tests
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.2
+        with:
+          path: physics-systems
+
+      - name: Pull `simulation` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/simulation
+          token: ${{ secrets.PAT }}
+          path: simulation
+
+      - name: Pull `physics` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/physics
+          token: ${{ secrets.PAT }}
+          path: physics
+
+      - name: Pull `unmanaged` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/unmanaged
+          token: ${{ secrets.PAT }}
+          path: unmanaged
+
+      - name: Pull `transforms` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/transforms
+          token: ${{ secrets.PAT }}
+          path: transforms
+
+      - name: Pull `transform-systems` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/transform-systems
+          token: ${{ secrets.PAT }}
+          path: transform-systems
+      
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install tools
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Test project
+        run: dotnet test -c Debug --collect:"XPlat Code Coverage" --results-directory:"TestResults"
+
+#      - name: Generate HTML report from test results
+#        if: always()
+#        run: reportgenerator -reports:"TestResults/*/*.xml" -reporttypes:html -targetdir:"TestResults/html"
+#        
+#      - name: Upload HTML report
+#        uses: actions/upload-artifact@v4
+#        if: always()
+#        with:
+#          name: Test Results
+#          path: "*/TestResults/html"
+#
+#      - name: Upload crash dumps
+#        uses: actions/upload-artifact@v4
+#        if: always()
+#        with:
+#          name: Crash Dumps
+#          if-no-files-found: ignore
+#          path: "*/TestResults/*/*.dmp"
+#    
+#      - name: Upload test sequence
+#        uses: actions/upload-artifact@v4
+#        if: always()
+#        with:
+#          name: Test Sequence
+#          path: "*/TestResults/*/Sequence_*.xml"
+#
