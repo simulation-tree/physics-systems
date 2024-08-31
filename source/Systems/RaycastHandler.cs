@@ -8,11 +8,13 @@ namespace Physics.Systems
 {
     public readonly struct RaycastHandler : IRayHitHandler
     {
-        private readonly UnmanagedList<(bool, int, float, Vector3)> hits;
+        private readonly UnmanagedList<RaycastHit> hits;
+        private readonly PhysicsSystem system;
 
-        public RaycastHandler(UnmanagedList<(bool, int, float, Vector3)> hits)
+        public RaycastHandler(UnmanagedList<RaycastHit> hits, PhysicsSystem system)
         {
             this.hits = hits;
+            this.system = system;
         }
 
         bool IRayHitHandler.AllowTest(CollidableReference collidable)
@@ -27,14 +29,10 @@ namespace Physics.Systems
 
         void IRayHitHandler.OnRayHit(in RayData ray, ref float maximumT, float t, Vector3 normal, CollidableReference collidable, int childIndex)
         {
-            if (collidable.Mobility == CollidableMobility.Dynamic || collidable.Mobility == CollidableMobility.Kinematic)
-            {
-                hits.Add((false, collidable.BodyHandle.Value, t, normal));
-            }
-            else
-            {
-                hits.Add((true, collidable.StaticHandle.Value, t, normal));
-            }
+            bool isStatic = collidable.Mobility == CollidableMobility.Static;
+            uint hitEntity = system.GetPhysicsEntity(collidable.RawHandleValue, isStatic);
+            Vector3 point = ray.Origin + ray.Direction * t;
+            hits.Add(new RaycastHit(point, normal, t, hitEntity));
         }
     }
 }
