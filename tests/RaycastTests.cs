@@ -35,8 +35,7 @@ namespace Physics.Tests
             using TransformSystem transforms = new(world);
             using PhysicsSystem physics = new(world);
 
-            CubeShape cubeShape = new(world, 0.5f);
-            Body cubeBody = new(world, cubeShape, IsBody.Type.Dynamic);
+            Body cubeBody = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
             Transform cubeTransform = cubeBody;
             cubeTransform.LocalPosition = new(0, 0, 5);
 
