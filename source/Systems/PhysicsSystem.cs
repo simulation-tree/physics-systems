@@ -6,7 +6,6 @@ using Physics.Components;
 using Physics.Events;
 using Simulation;
 using System;
-using System.Diagnostics;
 using System.Numerics;
 using Transforms.Components;
 using Unmanaged;
@@ -22,6 +21,7 @@ namespace Physics.Systems
         private readonly Query<IsBody, LocalToWorld, WorldRotation> bodyQuery;
         private readonly Query<IsBody, LinearVelocity> bodyLinearVelocityQuery;
         private readonly Query<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
+        private readonly Query<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
         private readonly UnmanagedArray<(Vector3, Quaternion, Vector3, Vector3)> physicsObjectState;
         private readonly UnmanagedDictionary<uint, CompiledBody> bodies;
         private readonly UnmanagedDictionary<int, CompiledShape> shapes;
@@ -45,6 +45,7 @@ namespace Physics.Systems
             bodyQuery = new(world);
             bodyLinearVelocityQuery = new(world);
             directionalGravityQuery = new(world);
+            pointGravityQuery = new(world);
             physicsObjectState = new();
             bodies = new();
             shapes = new();
@@ -68,6 +69,7 @@ namespace Physics.Systems
             handleToBody.Dispose();
             shapes.Dispose();
             bodies.Dispose();
+            pointGravityQuery.Dispose();
             directionalGravityQuery.Dispose();
             bodyLinearVelocityQuery.Dispose();
             physicsObjectState.Dispose();
@@ -85,6 +87,7 @@ namespace Physics.Systems
         {
             TimeSpan delta = update.delta;
             gravity.Write(0, GetGlobalGravity());
+            ApplyPointGravity(delta);
             CreateAndDestroyPhysicsObjects();
 
             if (delta.Ticks > 0)
@@ -94,6 +97,60 @@ namespace Physics.Systems
 
             CopyPhysicsObjectStateToEntities();
             PerformRaycastRequests();
+        }
+
+        private void ApplyPointGravity(TimeSpan delta)
+        {
+            //todo: fault: this needs a test to verify, but it does work in practice
+            pointGravityQuery.Update();
+            using UnmanagedArray<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
+            uint index = 0;
+            foreach (var x in pointGravityQuery)
+            {
+                float force = x.Component1.force;
+                float radius = x.Component2.radius;
+                Vector3 worldPosition = x.Component3.Position;
+                pointGravitySources[index] = (worldPosition, force, radius);
+                index++;
+            }
+
+            bodyQuery.Update();
+            foreach (var x in bodyQuery)
+            {
+                uint bodyEntity = x.entity;
+                IsBody bodyComponent = x.Component1;
+                if (bodyComponent.type == IsBody.Type.Dynamic)
+                {
+                    Vector3 accumulatedGravity = default;
+                    Vector3 worldPosition = x.Component2.Position;
+                    foreach ((Vector3 sourcePosition, float force, float radius) in pointGravitySources)
+                    {
+                        Vector3 offset = worldPosition - sourcePosition;
+                        float distanceSquared = offset.LengthSquared();
+                        if (distanceSquared < radius * radius)
+                        {
+                            float distance = MathF.Sqrt(distanceSquared);
+                            float attenuation = 1f - MathF.Min(distance / radius, 1f);
+                            Vector3 direction = Vector3.Normalize(offset);
+                            accumulatedGravity += direction * force * attenuation;
+                        }
+                    }
+
+                    if (accumulatedGravity != default)
+                    {
+                        accumulatedGravity *= -1;
+                        if (!world.ContainsComponent<LinearVelocity>(bodyEntity))
+                        {
+                            world.AddComponent(bodyEntity, new LinearVelocity(accumulatedGravity * (float)delta.TotalSeconds));
+                        }
+                        else
+                        {
+                            ref LinearVelocity linearVelocity = ref world.GetComponentRef<LinearVelocity>(bodyEntity);
+                            linearVelocity.value += accumulatedGravity * (float)delta.TotalSeconds;
+                        }
+                    }
+                }
+            }
         }
 
         private void PerformRaycastRequests()
@@ -187,7 +244,7 @@ namespace Physics.Systems
                         throw new Exception($"Physics body `{bodyEntity}` has an unrecognized body type `{type}`");
                     }
 
-                    Vector3 scale = ltw.Scale;
+                    (Vector3 worldPosition, Quaternion ltwRotation, Vector3 scale) = ltw.Decomposed;
                     Vector3 roundedScale = new(MathF.Round(scale.X, 3), MathF.Round(scale.Y, 3), MathF.Round(scale.Z, 3));
                     Vector3 localOffset = shapeComponent.offset;
                     int shapeHash = HashCode.Combine(shapeEntity, type, localOffset, roundedScale, mass);
@@ -202,9 +259,9 @@ namespace Physics.Systems
 
                     //make sure a physics body exists for this combination of (shape, type)
                     bool isStatic = type == IsBody.Type.Static;
-                    Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
+                    Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
                     //worldOffset = default;
-                    Vector3 desiredWorldPosition = ltw.Position + worldOffset;
+                    Vector3 desiredWorldPosition = worldPosition + worldOffset;
                     Quaternion desiredWorldRotation = r.Component3.value;
                     if (!bodies.TryGetValue(bodyEntity, out CompiledBody compiledBody))
                     {
@@ -468,8 +525,7 @@ namespace Physics.Systems
             foreach (var x in directionalGravityQuery)
             {
                 LocalToWorld ltw = world.GetComponent<LocalToWorld>(x.entity);
-                Quaternion rotation = ltw.Rotation;
-                Vector3 forward = Vector3.Transform(Vector3.UnitZ, rotation);
+                Vector3 forward = ltw.Forward;
                 force += forward * x.Component1.force;
             }
 
