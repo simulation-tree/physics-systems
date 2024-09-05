@@ -17,10 +17,10 @@ namespace Physics.Systems
     {
         private readonly UnmanagedList<RaycastHit> hits;
         private readonly UnmanagedList<Raycast> raycasts;
-        private readonly Query<IsBody, LocalToWorld, WorldRotation> bodyQuery;
-        private readonly Query<IsBody, LinearVelocity> bodyLinearVelocityQuery;
-        private readonly Query<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
-        private readonly Query<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
+        private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
+        private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
+        private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
+        private readonly ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
         private readonly UnmanagedArray<(Vector3, Quaternion, Vector3, Vector3)> physicsObjectState;
         private readonly UnmanagedDictionary<uint, CompiledBody> bodies;
         private readonly UnmanagedDictionary<int, CompiledShape> shapes;
@@ -40,10 +40,10 @@ namespace Physics.Systems
 
             hits = new();
             raycasts = new();
-            bodyQuery = new(world);
-            bodyLinearVelocityQuery = new(world);
-            directionalGravityQuery = new(world);
-            pointGravityQuery = new(world);
+            bodyQuery = new();
+            bodyLinearVelocityQuery = new();
+            directionalGravityQuery = new();
+            pointGravityQuery = new();
             physicsObjectState = new();
             bodies = new();
             shapes = new();
@@ -99,7 +99,7 @@ namespace Physics.Systems
         private void ApplyPointGravity(TimeSpan delta)
         {
             //todo: fault: this needs a test to verify, but it does work in practice
-            pointGravityQuery.Update();
+            pointGravityQuery.Update(world);
             using UnmanagedArray<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
             uint index = 0;
             foreach (var x in pointGravityQuery)
@@ -111,7 +111,7 @@ namespace Physics.Systems
                 index++;
             }
 
-            bodyQuery.Update();
+            bodyQuery.Update(world);
             foreach (var x in bodyQuery)
             {
                 uint bodyEntity = x.entity;
@@ -210,7 +210,7 @@ namespace Physics.Systems
             }
 
             physicsObjectState.Resize(world.MaxEntityValue + 1);
-            bodyQuery.Update();
+            bodyQuery.Update(world);
             using UnmanagedList<int> usedShapes = new();
             foreach (var r in bodyQuery)
             {
@@ -511,7 +511,7 @@ namespace Physics.Systems
         private Vector3 GetGlobalGravity()
         {
             Vector3 force = default;
-            directionalGravityQuery.Update();
+            directionalGravityQuery.Update(world);
             foreach (var x in directionalGravityQuery)
             {
                 LocalToWorld ltw = world.GetComponent<LocalToWorld>(x.entity);
