@@ -58,19 +58,19 @@ namespace Physics.Tests
                 USpan<RaycastHit> hits = new(hitsPointer, hitsLength);
                 if (raycast.identifier == 0)
                 {
-                    Assert.That(hits.length, Is.EqualTo(1));
+                    Assert.That(hits.Length, Is.EqualTo(1));
                     RaycastHit hit = hits[0];
                     Assert.That(hit.distance, Is.EqualTo(4.5f).Within(0.1f));
                 }
                 else if (raycast.identifier == 1)
                 {
-                    Assert.That(hits.length, Is.EqualTo(1));
+                    Assert.That(hits.Length, Is.EqualTo(1));
                     RaycastHit hit = hits[0];
                     Assert.That(hit.distance, Is.EqualTo(9.5f).Within(0.1f));
                 }
                 else if (raycast.identifier == 2)
                 {
-                    Assert.That(hits.length, Is.EqualTo(0));
+                    Assert.That(hits.Length, Is.EqualTo(0));
                 }
                 else
                 {
