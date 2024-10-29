@@ -30,8 +30,10 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\simulation\source\Simulation.csproj" />
+		<ProjectReference Include="..\..\simulation\tests\Simulation Tests.csproj" />
 		<ProjectReference Include="..\..\transform-systems\source\Transform Systems.csproj" />
 		<ProjectReference Include="..\..\unmanaged\source\Unmanaged.csproj" />
+		<ProjectReference Include="..\..\unmanaged\tests\Unmanaged Tests.csproj" />
 		<ProjectReference Include="..\source\Phyics Systems.csproj" />
 	</ItemGroup>
 

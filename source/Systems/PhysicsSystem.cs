@@ -1,19 +1,20 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
-using BepuUtilities.Memory;
 using Physics.Components;
 using Physics.Events;
 using Simulation;
+using Simulation.Functions;
 using System;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Transforms.Components;
 using Unmanaged;
 using Unmanaged.Collections;
 
 namespace Physics.Systems
 {
-    public class PhysicsSystem : SystemBase
+    public readonly struct PhysicsSystem : ISystem
     {
         private readonly UnmanagedList<RaycastHit> hits;
         private readonly UnmanagedList<Raycast> raycasts;
@@ -25,18 +26,58 @@ namespace Physics.Systems
         private readonly UnmanagedDictionary<uint, CompiledBody> bodies;
         private readonly UnmanagedDictionary<int, CompiledShape> shapes;
         private readonly UnmanagedDictionary<(int, bool), uint> handleToBody;
-        private readonly BepuPhysics.Simulation physicsSimulation;
-        private readonly BufferPool bufferPool;
+        private readonly BepuSimulation physicsSimulation;
+        private readonly BepuBufferPool bufferPool;
         private readonly Allocation gravity;
 
-        public PhysicsSystem(World world) : base(world)
+        readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
+        readonly unsafe IterateFunction ISystem.Update => new(&Update);
+        readonly unsafe FinalizeFunction ISystem.Finalize => new(&Finalize);
+
+        readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
+        {
+            buffer[0] = MessageHandler.Create<Raycast>(new(&HandleRaycast));
+            return 1;
+        }
+
+        [UnmanagedCallersOnly]
+        private static void Initialize(SystemContainer container, World world)
+        {
+        }
+
+        [UnmanagedCallersOnly]
+        private static void Update(SystemContainer container, World world, TimeSpan delta)
+        {
+            ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
+            system.Update(world, delta);
+        }
+
+        [UnmanagedCallersOnly]
+        private static void Finalize(SystemContainer container, World world)
+        {
+            if (container.World == world)
+            {
+                ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
+                system.Dispose();
+            }
+        }
+
+        [UnmanagedCallersOnly]
+        private static void HandleRaycast(SystemContainer container, World world, Allocation message)
+        {
+            ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
+            Raycast raycast = message.Read<Raycast>();
+            system.PerformRaycastRequest(world, raycast);
+        }
+
+        public PhysicsSystem()
         {
             bufferPool = new();
             gravity = Allocation.Create(new Vector3(0f));
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
             PoseIntegratorCallbacks poseIntegratorCallbacks = new(gravity, 0f, 0f);
             SolveDescription solveDescription = new(8, 1);
-            physicsSimulation = BepuPhysics.Simulation.Create(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
+            physicsSimulation = new(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
             hits = new();
             raycasts = new();
@@ -48,11 +89,9 @@ namespace Physics.Systems
             bodies = new();
             shapes = new();
             handleToBody = new();
-            Subscribe<PhysicsUpdate>(Update);
-            Subscribe<Raycast>(Raycast);
         }
 
-        public override void Dispose()
+        private void Dispose()
         {
             foreach (uint bodyEntity in bodies.Keys)
             {
@@ -73,32 +112,31 @@ namespace Physics.Systems
             physicsObjectState.Dispose();
             bodyQuery.Dispose();
             physicsSimulation.Dispose();
-            bufferPool.Clear();
+            bufferPool.Dispose();
             gravity.Dispose();
             raycasts.Dispose();
             hits.Dispose();
-            base.Dispose();
         }
 
-        private void Update(PhysicsUpdate update)
+        private void Update(World world, TimeSpan delta)
         {
-            TimeSpan delta = update.delta;
-            gravity.Write(0, GetGlobalGravity());
-            ApplyPointGravity(delta);
-            CreateAndDestroyPhysicsObjects();
+            Vector3 globalGravity = GetGlobalGravity(world);
+            gravity.Write(0, globalGravity);
+            ApplyPointGravity(world, delta);
+            CreateAndDestroyPhysicsObjects(world);
 
             if (delta.Ticks > 0)
             {
-                physicsSimulation.Timestep((float)delta.TotalSeconds);
+                physicsSimulation.Update(delta);
             }
 
-            CopyPhysicsObjectStateToEntities();
-            PerformRaycastRequests();
+            CopyPhysicsObjectStateToEntities(world);
+            PerformRaycastRequests(world);
         }
 
-        private void ApplyPointGravity(TimeSpan delta)
+        private void ApplyPointGravity(World world, TimeSpan delta)
         {
-            //todo: fault: this needs a test to verify, but it does work in practice
+            //todo: fault: this needs a test to verify, but in theory it should work
             pointGravityQuery.Update(world);
             using UnmanagedArray<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
             uint index = 0;
@@ -150,26 +188,32 @@ namespace Physics.Systems
             }
         }
 
-        private void PerformRaycastRequests()
+        private void AddRaycastRequest(Raycast raycast)
         {
-            RaycastHandler handler = new(hits, this);
+            raycasts.Add(raycast);
+        }
+
+        private void PerformRaycastRequests(World world)
+        {
             foreach (Raycast raycast in raycasts)
             {
-                physicsSimulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
-                if (raycast.callback != default)
-                {
-                    raycast.callback.Invoke(world, raycast, hits.AsSpan());
-                }
-
-                hits.Clear();
+                PerformRaycastRequest(world, raycast);
             }
 
             raycasts.Clear();
         }
 
-        private void Raycast(Raycast raycast)
+        private void PerformRaycastRequest(World world, Raycast raycast)
         {
-            raycasts.Add(raycast);
+            BepuPhysics.Simulation simulation = physicsSimulation;
+            RaycastHandler handler = new(hits, this);
+            simulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
+            if (raycast.callback != default)
+            {
+                raycast.callback.Invoke(world, raycast, hits.AsSpan());
+            }
+
+            hits.Clear();
         }
 
         public uint GetPhysicsEntity(int handle, bool isStatic)
@@ -177,10 +221,11 @@ namespace Physics.Systems
             return handleToBody[(handle, isStatic)];
         }
 
-        private void CreateAndDestroyPhysicsObjects()
+        private void CreateAndDestroyPhysicsObjects(World world)
         {
-            //remove shapes and bodies that arent pointing to entities anymore
+            //remove shapes and bodies of entities that dont exist anymore
             using UnmanagedList<uint> bodiesRemoved = new();
+            BepuPhysics.Simulation simulation = physicsSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
                 if (!world.ContainsEntity(bodyEntity))
@@ -191,11 +236,11 @@ namespace Physics.Systems
                     handleToBody.Remove((body.handle, isStatic));
                     if (isStatic)
                     {
-                        physicsSimulation.Statics.Remove(body.StaticBody);
+                        simulation.Statics.Remove(body.StaticBody);
                     }
                     else
                     {
-                        physicsSimulation.Bodies.Remove(body.DynamicBody);
+                        simulation.Bodies.Remove(body.DynamicBody);
                     }
 
                     physicsObjectState[bodyEntity] = default;
@@ -209,7 +254,8 @@ namespace Physics.Systems
                 bodies.Remove(bodyEntity);
             }
 
-            physicsObjectState.Resize(world.MaxEntityValue + 1);
+            //create shapes and bodies for entities that dont have them yet
+            physicsObjectState.Length = world.MaxEntityValue + 1;
             bodyQuery.Update(world);
             using UnmanagedList<int> usedShapes = new();
             foreach (var r in bodyQuery)
@@ -260,7 +306,6 @@ namespace Physics.Systems
                 //make sure a physics body exists for this combination of (shape, type)
                 bool isStatic = type == IsBody.Type.Static;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
-                //worldOffset = default;
                 Vector3 desiredWorldPosition = worldPosition + worldOffset;
                 Quaternion desiredWorldRotation = r.Component3.value;
                 if (!bodies.TryGetValue(bodyEntity, out CompiledBody compiledBody))
@@ -274,11 +319,11 @@ namespace Physics.Systems
                     handleToBody.Remove((compiledBody.handle, isStatic));
                     if (isStatic)
                     {
-                        physicsSimulation.Statics.Remove(compiledBody.StaticBody);
+                        simulation.Statics.Remove(compiledBody.StaticBody);
                     }
                     else
                     {
-                        physicsSimulation.Bodies.Remove(compiledBody.DynamicBody);
+                        simulation.Bodies.Remove(compiledBody.DynamicBody);
                     }
 
                     compiledBody.Dispose();
@@ -292,7 +337,7 @@ namespace Physics.Systems
                 if (isStatic)
                 {
                     (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) state = physicsObjectState[bodyEntity];
-                    StaticReference staticReference = physicsSimulation.Statics[compiledBody.StaticBody];
+                    StaticReference staticReference = simulation.Statics[compiledBody.StaticBody];
                     if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                     {
                         state.position = desiredWorldPosition;
@@ -307,7 +352,7 @@ namespace Physics.Systems
                 else
                 {
                     (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) = physicsObjectState[bodyEntity];
-                    BodyReference bodyReference = physicsSimulation.Bodies[compiledBody.DynamicBody];
+                    BodyReference bodyReference = simulation.Bodies[compiledBody.DynamicBody];
                     if (position != desiredWorldPosition || rotation != desiredWorldRotation)
                     {
                         ref RigidPose pose = ref bodyReference.Pose;
@@ -341,13 +386,14 @@ namespace Physics.Systems
             foreach (int shapeHash in shapesToRemove)
             {
                 CompiledShape shape = shapes.Remove(shapeHash);
-                physicsSimulation.Shapes.Remove(shape.shapeIndex);
+                simulation.Shapes.Remove(shape.shapeIndex);
                 shape.Dispose();
             }
         }
 
-        private void CopyPhysicsObjectStateToEntities()
+        private void CopyPhysicsObjectStateToEntities(World world)
         {
+            BepuPhysics.Simulation simulation = physicsSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
                 CompiledBody body = bodies[bodyEntity];
@@ -356,10 +402,9 @@ namespace Physics.Systems
                 LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity);
                 Vector3 localOffset = shape.offset;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
-                //worldOffset = default;
                 if (isStatic)
                 {
-                    StaticReference staticReference = physicsSimulation.Statics[body.StaticBody];
+                    StaticReference staticReference = simulation.Statics[body.StaticBody];
                     StaticDescription description = staticReference.GetDescription();
                     Vector3 finalWorldPosition = description.Pose.Position - worldOffset;
                     Quaternion finalWorldRotation = description.Pose.Orientation;
@@ -387,7 +432,7 @@ namespace Physics.Systems
                     }
 
                     //copy into individual local components
-                    BodyReference bodyReference = physicsSimulation.Bodies[body.DynamicBody];
+                    BodyReference bodyReference = simulation.Bodies[body.DynamicBody];
                     RigidPose pose = bodyReference.Pose;
                     if (!world.ContainsComponent<Position>(bodyEntity))
                     {
@@ -443,18 +488,21 @@ namespace Physics.Systems
                         bounds.min = bodyReference.BoundingBox.Min;
                         bounds.max = bodyReference.BoundingBox.Max;
                     }
+
+                    //calculate local to world
                 }
             }
         }
 
         private CompiledShape CreateShape(Shape shape, Vector3 scale, float mass)
         {
+            BepuPhysics.Simulation simulation = physicsSimulation;
             Vector3 offset = shape.offset;
             if (shape.Is(out CubeShape cube))
             {
                 Vector3 extents = cube.extents * scale;
                 Box box = new(extents.X * 2, extents.Y * 2, extents.Z * 2);
-                TypedIndex shapeIndex = physicsSimulation.Shapes.Add(box);
+                TypedIndex shapeIndex = simulation.Shapes.Add(box);
                 BodyInertia bodyInertia = box.ComputeInertia(mass);
                 return new CompiledShape(offset, scale, shapeIndex, bodyInertia);
             }
@@ -462,7 +510,7 @@ namespace Physics.Systems
             {
                 float radius = circle.radius * MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
                 Sphere sphere = new(radius);
-                TypedIndex shapeIndex = physicsSimulation.Shapes.Add(sphere);
+                TypedIndex shapeIndex = simulation.Shapes.Add(sphere);
                 BodyInertia bodyInertia = sphere.ComputeInertia(mass);
                 return new CompiledShape(offset, scale, shapeIndex, bodyInertia);
             }
@@ -474,6 +522,7 @@ namespace Physics.Systems
 
         private CompiledBody CreateBody(IsBody bodyComponent, CompiledShape shape, Vector3 worldPosition, Quaternion worldRotation)
         {
+            BepuPhysics.Simulation simulation = physicsSimulation;
             IsBody.Type type = bodyComponent.type;
             RigidPose pose = new(worldPosition, worldRotation);
             ContinuousDetection continuity = ContinuousDetection.Discrete;
@@ -484,20 +533,20 @@ namespace Physics.Systems
             {
                 CollidableDescription collidable = new(shape.shapeIndex, 10f, continuity);
                 BodyDescription description = BodyDescription.CreateDynamic(pose, default, shape.bodyInertia, collidable, activity);
-                BodyHandle bodyHandle = physicsSimulation.Bodies.Add(description);
+                BodyHandle bodyHandle = simulation.Bodies.Add(description);
                 handle = bodyHandle.Value;
             }
             else if (type == IsBody.Type.Kinematic)
             {
                 CollidableDescription collidable = new(shape.shapeIndex, 10f, continuity);
                 BodyDescription description = BodyDescription.CreateKinematic(pose, default, collidable, activity);
-                BodyHandle bodyHandle = physicsSimulation.Bodies.Add(description);
+                BodyHandle bodyHandle = simulation.Bodies.Add(description);
                 handle = bodyHandle.Value;
             }
             else if (type == IsBody.Type.Static)
             {
                 StaticDescription description = new(pose, shape.shapeIndex, continuity);
-                StaticHandle staticHandle = physicsSimulation.Statics.Add(description);
+                StaticHandle staticHandle = simulation.Statics.Add(description);
                 handle = staticHandle.Value;
             }
             else
@@ -508,7 +557,7 @@ namespace Physics.Systems
             return new(version, handle, type);
         }
 
-        private Vector3 GetGlobalGravity()
+        private Vector3 GetGlobalGravity(World world)
         {
             Vector3 force = default;
             directionalGravityQuery.Update(world);
