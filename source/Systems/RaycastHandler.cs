@@ -1,17 +1,17 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Trees;
+using Collections;
 using System.Numerics;
-using Unmanaged.Collections;
 
 namespace Physics.Systems
 {
     public readonly struct RaycastHandler : IRayHitHandler
     {
-        private readonly UnmanagedList<RaycastHit> hits;
+        private readonly List<RaycastHit> hits;
         private readonly PhysicsSystem system;
 
-        public RaycastHandler(UnmanagedList<RaycastHit> hits, PhysicsSystem system)
+        public RaycastHandler(List<RaycastHit> hits, PhysicsSystem system)
         {
             this.hits = hits;
             this.system = system;

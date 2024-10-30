@@ -1,6 +1,7 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
+using Collections;
 using Physics.Components;
 using Physics.Events;
 using Simulation;
@@ -10,22 +11,21 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms.Components;
 using Unmanaged;
-using Unmanaged.Collections;
 
 namespace Physics.Systems
 {
     public readonly struct PhysicsSystem : ISystem
     {
-        private readonly UnmanagedList<RaycastHit> hits;
-        private readonly UnmanagedList<Raycast> raycasts;
+        private readonly List<RaycastHit> hits;
+        private readonly List<Raycast> raycasts;
         private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
         private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
         private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
         private readonly ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
-        private readonly UnmanagedArray<(Vector3, Quaternion, Vector3, Vector3)> physicsObjectState;
-        private readonly UnmanagedDictionary<uint, CompiledBody> bodies;
-        private readonly UnmanagedDictionary<int, CompiledShape> shapes;
-        private readonly UnmanagedDictionary<(int, bool), uint> handleToBody;
+        private readonly Array<(Vector3, Quaternion, Vector3, Vector3)> physicsObjectState;
+        private readonly Dictionary<uint, CompiledBody> bodies;
+        private readonly Dictionary<int, CompiledShape> shapes;
+        private readonly Dictionary<(int, bool), uint> handleToBody;
         private readonly BepuSimulation physicsSimulation;
         private readonly BepuBufferPool bufferPool;
         private readonly Allocation gravity;
@@ -138,7 +138,7 @@ namespace Physics.Systems
         {
             //todo: fault: this needs a test to verify, but in theory it should work
             pointGravityQuery.Update(world);
-            using UnmanagedArray<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
+            using Array<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
             uint index = 0;
             foreach (var x in pointGravityQuery)
             {
@@ -224,7 +224,7 @@ namespace Physics.Systems
         private void CreateAndDestroyPhysicsObjects(World world)
         {
             //remove shapes and bodies of entities that dont exist anymore
-            using UnmanagedList<uint> bodiesRemoved = new();
+            using List<uint> bodiesRemoved = new();
             BepuPhysics.Simulation simulation = physicsSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
@@ -257,7 +257,7 @@ namespace Physics.Systems
             //create shapes and bodies for entities that dont have them yet
             physicsObjectState.Length = world.MaxEntityValue + 1;
             bodyQuery.Update(world);
-            using UnmanagedList<int> usedShapes = new();
+            using List<int> usedShapes = new();
             foreach (var r in bodyQuery)
             {
                 uint bodyEntity = r.entity;
@@ -374,7 +374,7 @@ namespace Physics.Systems
             }
 
             //remove shapes that are no longer used
-            using UnmanagedList<int> shapesToRemove = new();
+            using List<int> shapesToRemove = new();
             foreach (int shapeHash in shapes.Keys)
             {
                 if (!usedShapes.Contains(shapeHash))
