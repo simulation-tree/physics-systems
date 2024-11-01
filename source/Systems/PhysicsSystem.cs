@@ -22,7 +22,7 @@ namespace Physics.Systems
         private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
         private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
         private readonly ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
-        private readonly Array<(Vector3, Quaternion, Vector3, Vector3)> physicsObjectState;
+        private readonly Array<BodyState> physicsObjectState;
         private readonly Dictionary<uint, CompiledBody> bodies;
         private readonly Dictionary<int, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
@@ -31,7 +31,7 @@ namespace Physics.Systems
         private readonly Allocation gravity;
 
         readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
-        readonly unsafe IterateFunction ISystem.Update => new(&Update);
+        readonly unsafe IterateFunction ISystem.Iterate => new(&Update);
         readonly unsafe FinalizeFunction ISystem.Finalize => new(&Finalize);
 
         readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
@@ -334,9 +334,9 @@ namespace Physics.Systems
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
+                ref BodyState state = ref physicsObjectState[bodyEntity];
                 if (isStatic)
                 {
-                    (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) state = physicsObjectState[bodyEntity];
                     StaticReference staticReference = simulation.Statics[compiledBody.StaticBody];
                     if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                     {
@@ -346,14 +346,12 @@ namespace Physics.Systems
                         newDescription.Pose.Position = desiredWorldPosition;
                         newDescription.Pose.Orientation = desiredWorldRotation;
                         staticReference.ApplyDescription(newDescription);
-                        physicsObjectState[bodyEntity] = state;
                     }
                 }
                 else
                 {
-                    (Vector3 position, Quaternion rotation, Vector3 linear, Vector3 angular) = physicsObjectState[bodyEntity];
                     BodyReference bodyReference = simulation.Bodies[compiledBody.DynamicBody];
-                    if (position != desiredWorldPosition || rotation != desiredWorldRotation)
+                    if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                     {
                         ref RigidPose pose = ref bodyReference.Pose;
                         pose.Position = desiredWorldPosition;
@@ -363,7 +361,7 @@ namespace Physics.Systems
 
                     Vector3 linearVelocity = world.GetComponent(bodyEntity, new LinearVelocity()).value; //optional
                     Vector3 angularVelocity = world.GetComponent(bodyEntity, new AngularVelocity()).value; //optional
-                    if (linear != linearVelocity || angular != angularVelocity)
+                    if (state.linearVelocity != linearVelocity || state.angularVelocity != angularVelocity)
                     {
                         ref BodyVelocity velocity = ref bodyReference.Velocity;
                         velocity.Linear = linearVelocity;
@@ -408,7 +406,7 @@ namespace Physics.Systems
                     StaticDescription description = staticReference.GetDescription();
                     Vector3 finalWorldPosition = description.Pose.Position - worldOffset;
                     Quaternion finalWorldRotation = description.Pose.Orientation;
-                    physicsObjectState[bodyEntity] = (finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
+                    physicsObjectState[bodyEntity] = new(finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))
@@ -475,7 +473,7 @@ namespace Physics.Systems
 
                     ref AngularVelocity angularVelocity = ref world.GetComponentRef<AngularVelocity>(bodyEntity);
                     angularVelocity.value = velocity.Angular;
-                    physicsObjectState[bodyEntity] = (finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
+                    physicsObjectState[bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))

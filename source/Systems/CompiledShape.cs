@@ -5,7 +5,7 @@ using System.Numerics;
 
 namespace Physics.Systems
 {
-    public struct CompiledShape : IDisposable
+    public readonly struct CompiledShape : IDisposable
     {
         public readonly Vector3 offset;
         public readonly Vector3 scale;
