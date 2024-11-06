@@ -17,7 +17,7 @@ namespace Physics.Systems
     public readonly struct PhysicsSystem : ISystem
     {
         private readonly List<RaycastHit> hits;
-        private readonly List<Raycast> raycasts;
+        private readonly List<RaycastRequest> raycasts;
         private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
         private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
         private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
@@ -36,7 +36,7 @@ namespace Physics.Systems
 
         readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
         {
-            buffer[0] = MessageHandler.Create<Raycast>(new(&HandleRaycast));
+            buffer[0] = MessageHandler.Create<RaycastRequest>(new(&HandleRaycast));
             return 1;
         }
 
@@ -66,7 +66,7 @@ namespace Physics.Systems
         private static void HandleRaycast(SystemContainer container, World world, Allocation message)
         {
             ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-            Raycast raycast = message.Read<Raycast>();
+            RaycastRequest raycast = message.Read<RaycastRequest>();
             system.PerformRaycastRequest(world, raycast);
         }
 
@@ -188,14 +188,14 @@ namespace Physics.Systems
             }
         }
 
-        private void AddRaycastRequest(Raycast raycast)
+        private void AddRaycastRequest(RaycastRequest raycast)
         {
             raycasts.Add(raycast);
         }
 
         private void PerformRaycastRequests(World world)
         {
-            foreach (Raycast raycast in raycasts)
+            foreach (RaycastRequest raycast in raycasts)
             {
                 PerformRaycastRequest(world, raycast);
             }
@@ -203,7 +203,7 @@ namespace Physics.Systems
             raycasts.Clear();
         }
 
-        private void PerformRaycastRequest(World world, Raycast raycast)
+        private void PerformRaycastRequest(World world, RaycastRequest raycast)
         {
             BepuPhysics.Simulation simulation = physicsSimulation;
             RaycastHandler handler = new(hits, this);
