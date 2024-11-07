@@ -31,19 +31,19 @@ namespace Physics.Tests
             cubeTransform.LocalPosition = new(0, 0, 5);
             Simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
+            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
             Assert.That(FindProof(0), Is.True);
 
             cubeTransform.LocalPosition = new(0, 0, 10);
             Simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
+            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
             Assert.That(FindProof(1), Is.True);
 
             cubeTransform.LocalPosition = new(5, 0, 0);
             Simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
+            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
             Assert.That(FindProof(2), Is.True);
 
             bool FindProof(ulong identifier)

@@ -17,7 +17,6 @@ namespace Physics.Systems
     public readonly struct PhysicsSystem : ISystem
     {
         private readonly List<RaycastHit> hits;
-        private readonly List<RaycastRequest> raycasts;
         private readonly List<uint> toRemove;
         private readonly List<uint> usedShapes;
         private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
@@ -69,7 +68,7 @@ namespace Physics.Systems
         {
             ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
             RaycastRequest raycast = message.Read<RaycastRequest>();
-            system.PerformRaycastRequest(world, raycast);
+            system.PerformRaycastRequest(raycast);
         }
 
         public PhysicsSystem()
@@ -82,7 +81,6 @@ namespace Physics.Systems
             physicsSimulation = new(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
             hits = new();
-            raycasts = new();
             toRemove = new();
             usedShapes = new();
             bodyQuery = new();
@@ -120,7 +118,6 @@ namespace Physics.Systems
             gravity.Dispose();
             usedShapes.Dispose();
             toRemove.Dispose();
-            raycasts.Dispose();
             hits.Dispose();
         }
 
@@ -137,7 +134,6 @@ namespace Physics.Systems
             }
 
             CopyPhysicsObjectStateToEntities(world);
-            PerformRaycastRequests(world);
         }
 
         private void ApplyPointGravity(World world, TimeSpan delta)
@@ -194,29 +190,14 @@ namespace Physics.Systems
             }
         }
 
-        private void AddRaycastRequest(RaycastRequest raycast)
-        {
-            raycasts.Add(raycast);
-        }
-
-        private void PerformRaycastRequests(World world)
-        {
-            foreach (RaycastRequest raycast in raycasts)
-            {
-                PerformRaycastRequest(world, raycast);
-            }
-
-            raycasts.Clear();
-        }
-
-        private void PerformRaycastRequest(World world, RaycastRequest raycast)
+        private void PerformRaycastRequest(RaycastRequest raycast)
         {
             BepuPhysics.Simulation simulation = physicsSimulation;
             RaycastHandler handler = new(hits, this);
             simulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
             if (raycast.callback != default)
             {
-                raycast.callback.Invoke(world, raycast, hits.AsSpan());
+                raycast.callback.Invoke(raycast.world, raycast, hits.AsSpan());
             }
 
             hits.Clear();
