@@ -18,13 +18,15 @@ namespace Physics.Systems
     {
         private readonly List<RaycastHit> hits;
         private readonly List<RaycastRequest> raycasts;
+        private readonly List<uint> toRemove;
+        private readonly List<uint> usedShapes;
         private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
         private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
         private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
         private readonly ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
         private readonly Array<BodyState> physicsObjectState;
         private readonly Dictionary<uint, CompiledBody> bodies;
-        private readonly Dictionary<int, CompiledShape> shapes;
+        private readonly Dictionary<uint, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
         private readonly BepuSimulation physicsSimulation;
         private readonly BepuBufferPool bufferPool;
@@ -58,7 +60,7 @@ namespace Physics.Systems
             if (container.World == world)
             {
                 ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-                system.Dispose();
+                system.CleanUp();
             }
         }
 
@@ -81,6 +83,8 @@ namespace Physics.Systems
 
             hits = new();
             raycasts = new();
+            toRemove = new();
+            usedShapes = new();
             bodyQuery = new();
             bodyLinearVelocityQuery = new();
             directionalGravityQuery = new();
@@ -91,14 +95,14 @@ namespace Physics.Systems
             handleToBody = new();
         }
 
-        private void Dispose()
+        private void CleanUp()
         {
             foreach (uint bodyEntity in bodies.Keys)
             {
                 bodies[bodyEntity].Dispose();
             }
 
-            foreach (int shapeHash in shapes.Keys)
+            foreach (uint shapeHash in shapes.Keys)
             {
                 shapes[shapeHash].Dispose();
             }
@@ -114,6 +118,8 @@ namespace Physics.Systems
             physicsSimulation.Dispose();
             bufferPool.Dispose();
             gravity.Dispose();
+            usedShapes.Dispose();
+            toRemove.Dispose();
             raycasts.Dispose();
             hits.Dispose();
         }
@@ -224,7 +230,7 @@ namespace Physics.Systems
         private void CreateAndDestroyPhysicsObjects(World world)
         {
             //remove shapes and bodies of entities that dont exist anymore
-            using List<uint> bodiesRemoved = new();
+            toRemove.Clear();
             BepuPhysics.Simulation simulation = physicsSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
@@ -245,11 +251,11 @@ namespace Physics.Systems
 
                     physicsObjectState[bodyEntity] = default;
                     body.Dispose();
-                    bodiesRemoved.Add(bodyEntity);
+                    toRemove.Add(bodyEntity);
                 }
             }
 
-            foreach (uint bodyEntity in bodiesRemoved)
+            foreach (uint bodyEntity in toRemove)
             {
                 bodies.Remove(bodyEntity);
             }
@@ -257,7 +263,7 @@ namespace Physics.Systems
             //create shapes and bodies for entities that dont have them yet
             physicsObjectState.Length = world.MaxEntityValue + 1;
             bodyQuery.Update(world);
-            using List<int> usedShapes = new();
+            usedShapes.Clear();
             foreach (var r in bodyQuery)
             {
                 uint bodyEntity = r.entity;
@@ -293,7 +299,7 @@ namespace Physics.Systems
                 (Vector3 worldPosition, Quaternion ltwRotation, Vector3 scale) = ltw.Decomposed;
                 Vector3 roundedScale = new(MathF.Round(scale.X, 3), MathF.Round(scale.Y, 3), MathF.Round(scale.Z, 3));
                 Vector3 localOffset = shape.offset;
-                int shapeHash = HashCode.Combine(shape, type, roundedScale, mass);
+                uint shapeHash = GetHash(shape, type, roundedScale, mass);
                 if (!shapes.TryGetValue(shapeHash, out CompiledShape compiledShape))
                 {
                     compiledShape = CreateShape(shape, scale, mass);
@@ -372,16 +378,16 @@ namespace Physics.Systems
             }
 
             //remove shapes that are no longer used
-            using List<int> shapesToRemove = new();
-            foreach (int shapeHash in shapes.Keys)
+            toRemove.Clear();
+            foreach (uint shapeHash in shapes.Keys)
             {
                 if (!usedShapes.Contains(shapeHash))
                 {
-                    shapesToRemove.Add(shapeHash);
+                    toRemove.Add(shapeHash);
                 }
             }
 
-            foreach (int shapeHash in shapesToRemove)
+            foreach (uint shapeHash in toRemove)
             {
                 CompiledShape shape = shapes.Remove(shapeHash);
                 simulation.Shapes.Remove(shape.shapeIndex);
@@ -567,6 +573,19 @@ namespace Physics.Systems
             }
 
             return force;
+        }
+
+        private static uint GetHash(Shape shape, IsBody.Type type, Vector3 scale, float mass)
+        {
+            unchecked
+            {
+                int hash = 17;
+                hash = hash * 23 + shape.GetHashCode();
+                hash = hash * 23 + type.GetHashCode();
+                hash = hash * 23 + scale.GetHashCode();
+                hash = hash * 23 + mass.GetHashCode();
+                return (uint)hash;
+            }
         }
     }
 }
