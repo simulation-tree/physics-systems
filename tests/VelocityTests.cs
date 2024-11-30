@@ -1,6 +1,5 @@
 ﻿using Physics.Components;
 using Physics.Systems;
-using Simulation.Tests;
 using System;
 using System.Numerics;
 using Transforms;
@@ -8,7 +7,7 @@ using Transforms.Systems;
 
 namespace Physics.Tests
 {
-    public class VelocityTests : SimulationTests
+    public class VelocityTests : PhysicsTests
     {
         protected override void SetUp()
         {
@@ -26,7 +25,7 @@ namespace Physics.Tests
 
             Simulator.Update(TimeSpan.FromSeconds(1f));
 
-            Transform rockTransform = rock.transform;
+            Transform rockTransform = rock;
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(1f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(0f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Z, Is.EqualTo(0f).Within(0.1f));
@@ -55,7 +54,7 @@ namespace Physics.Tests
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
 
             Body otherRock = new(World, new CubeShape(0.5f), IsBody.Type.Dynamic);
-            Transform otherRockTransform = otherRock.transform;
+            Transform otherRockTransform = otherRock;
             otherRockTransform.LocalPosition = new(2, 0, 0);
 
             //Simulate(world, TimeSpan.FromSeconds(0.2f));
@@ -86,7 +85,7 @@ namespace Physics.Tests
             Simulator.Update(TimeSpan.FromSeconds(0.2f));
             Simulator.Update(TimeSpan.FromSeconds(0.2f));
 
-            Transform rockTransform = rock.transform;
+            Transform rockTransform = rock;
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(4f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-1.884f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Z, Is.EqualTo(0).Within(0.1f));
@@ -98,7 +97,7 @@ namespace Physics.Tests
             DirectionalGravity directionalGravity = new(World, -Vector3.UnitY);
 
             Body ball = new(World, new SphereShape(0.5f), IsBody.Type.Dynamic);
-            Transform ballTransform = ball.transform;
+            Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
 
             Body floor = new(World, new CubeShape(5f, 0.5f, 5f), IsBody.Type.Static);
@@ -107,7 +106,7 @@ namespace Physics.Tests
 
             Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(1f).Within(0.1f));
 
-            Transform floorTransform = floor.transform;
+            Transform floorTransform = floor;
             Assert.That(floorTransform.WorldPosition.X, Is.EqualTo(0f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Y, Is.EqualTo(0f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Z, Is.EqualTo(0f).Within(0.1f));
@@ -119,7 +118,7 @@ namespace Physics.Tests
             DirectionalGravity directionalGravity = new(World, -Vector3.UnitY);
 
             Body ball = new(World, new SphereShape(0.5f), IsBody.Type.Dynamic);
-            Transform ballTransform = ball.transform;
+            Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
 
             Body platform = new(World, new CubeShape(5f, 0.5f, 5f), IsBody.Type.Kinematic, new(0, 1, 0)); //platform moves up
@@ -128,7 +127,7 @@ namespace Physics.Tests
 
             Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(5f).Within(0.1f));
 
-            Transform floorTransform = platform.transform;
+            Transform floorTransform = platform;
             Assert.That(floorTransform.WorldPosition.X, Is.EqualTo(0f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Y, Is.EqualTo(4f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Z, Is.EqualTo(0f).Within(0.1f));
@@ -162,7 +161,7 @@ namespace Physics.Tests
 
             //45 degrees on y axis
             Quaternion rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI * 0.25f);
-            Transform cubeTransform = cubeBody.transform;
+            Transform cubeTransform = cubeBody;
             cubeTransform.WorldRotation = rotation;
             Simulator.Update(TimeSpan.FromSeconds(0.1f));
 

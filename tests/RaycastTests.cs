@@ -2,21 +2,23 @@
 using Physics.Events;
 using Physics.Systems;
 using Simulation;
-using Simulation.Tests;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms;
 using Transforms.Systems;
 using Unmanaged;
+using Worlds;
 
 namespace Physics.Tests
 {
-    public class RaycastTests : SimulationTests
+    public class RaycastTests : PhysicsTests
     {
         protected override void SetUp()
         {
             base.SetUp();
+            ComponentType.Register<bool>();
+            ComponentType.Register<ulong>();
             Simulator.AddSystem<TransformSystem>();
             Simulator.AddSystem<PhysicsSystem>();
             Simulator.AddSystem<TransformSystem>();
@@ -26,7 +28,7 @@ namespace Physics.Tests
         public unsafe void RaycastWithResults()
         {
             Body cubeBody = new(World, new CubeShape(0.5f), IsBody.Type.Dynamic);
-            Transform cubeTransform = cubeBody.transform;
+            Transform cubeTransform = cubeBody;
 
             cubeTransform.LocalPosition = new(0, 0, 5);
             Simulator.Update(TimeSpan.FromSeconds(0.01f));

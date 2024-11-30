@@ -11,6 +11,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms.Components;
 using Unmanaged;
+using Worlds;
 
 namespace Physics.Systems
 {
@@ -31,9 +32,9 @@ namespace Physics.Systems
         private readonly BepuBufferPool bufferPool;
         private readonly Allocation gravity;
 
-        readonly unsafe InitializeFunction ISystem.Initialize => new(&Initialize);
-        readonly unsafe IterateFunction ISystem.Iterate => new(&Update);
-        readonly unsafe FinalizeFunction ISystem.Finalize => new(&Finalize);
+        readonly unsafe StartSystem ISystem.Start => new(&Start);
+        readonly unsafe UpdateSystem ISystem.Update => new(&Update);
+        readonly unsafe FinishSystem ISystem.Finish => new(&Finish);
 
         readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
         {
@@ -42,7 +43,7 @@ namespace Physics.Systems
         }
 
         [UnmanagedCallersOnly]
-        private static void Initialize(SystemContainer container, World world)
+        private static void Start(SystemContainer container, World world)
         {
         }
 
@@ -54,7 +55,7 @@ namespace Physics.Systems
         }
 
         [UnmanagedCallersOnly]
-        private static void Finalize(SystemContainer container, World world)
+        private static void Finish(SystemContainer container, World world)
         {
             if (container.World == world)
             {
@@ -284,7 +285,7 @@ namespace Physics.Systems
                 if (!shapes.TryGetValue(shapeHash, out CompiledShape compiledShape))
                 {
                     compiledShape = CreateShape(shape, scale, mass);
-                    shapes.Add(shapeHash, compiledShape);
+                    shapes.TryAdd(shapeHash, compiledShape);
                     newShape = true;
                 }
 
@@ -298,8 +299,8 @@ namespace Physics.Systems
                 if (!bodies.TryGetValue(bodyEntity, out CompiledBody compiledBody))
                 {
                     compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
-                    bodies.Add(bodyEntity, compiledBody);
-                    handleToBody.Add((compiledBody.handle, isStatic), bodyEntity);
+                    bodies.TryAdd(bodyEntity, compiledBody);
+                    handleToBody.TryAdd((compiledBody.handle, isStatic), bodyEntity);
                 }
                 else if (compiledBody.version != bodyComponent.version || compiledBody.type != type || newShape)
                 {
@@ -317,7 +318,7 @@ namespace Physics.Systems
                     compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
                     isStatic = compiledBody.type == IsBody.Type.Static;
                     bodies[bodyEntity] = compiledBody;
-                    handleToBody.Add((compiledBody.handle, isStatic), bodyEntity);
+                    handleToBody.TryAdd((compiledBody.handle, isStatic), bodyEntity);
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
