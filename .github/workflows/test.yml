@@ -1,20 +1,29 @@
 name: Test
 
-on: [push]
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: physics-systems/tests
+    permissions:
+      statuses: write
+      checks: write
+      contents: write
+      pull-requests: write
+      actions: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4.1.2
         with:
-          path: physics-systems
+          path: ${{ github.event.repository.name }}
 
       - name: Pull `simulation` repository
         uses: actions/checkout@v4.1.2
@@ -22,6 +31,13 @@ jobs:
           repository: game-simulations/simulation
           token: ${{ secrets.PAT }}
           path: simulation
+
+      - name: Pull `worlds` repository
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/worlds
+          token: ${{ secrets.PAT }}
+          path: worlds
 
       - name: Pull `physics` repository
         uses: actions/checkout@v4.1.2
@@ -63,35 +79,15 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Install tools
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
-
       - name: Test project
-        run: dotnet test -c Debug --collect:"XPlat Code Coverage" --results-directory:"TestResults"
+        run: dotnet test "${{ github.event.repository.name }}/tests" -c Debug --logger "trx"
 
-#      - name: Generate HTML report from test results
-#        if: always()
-#        run: reportgenerator -reports:"TestResults/*/*.xml" -reporttypes:html -targetdir:"TestResults/html"
-#        
-#      - name: Upload HTML report
-#        uses: actions/upload-artifact@v4
-#        if: always()
-#        with:
-#          name: Test Results
-#          path: "*/TestResults/html"
-#
-#      - name: Upload crash dumps
-#        uses: actions/upload-artifact@v4
-#        if: always()
-#        with:
-#          name: Crash Dumps
-#          if-no-files-found: ignore
-#          path: "*/TestResults/*/*.dmp"
-#    
-#      - name: Upload test sequence
-#        uses: actions/upload-artifact@v4
-#        if: always()
-#        with:
-#          name: Test Sequence
-#          path: "*/TestResults/*/Sequence_*.xml"
-#
+      - name: Publish Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          working-directory:  ${{ github.event.repository.name }}
+          name: Report
+          path: 'tests/TestResults/*.trx'
+          reporter: dotnet-trx
+          fail-on-error: false
