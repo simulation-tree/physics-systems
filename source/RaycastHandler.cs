@@ -9,9 +9,9 @@ namespace Physics.Systems
     public readonly struct RaycastHandler : IRayHitHandler
     {
         private readonly List<RaycastHit> hits;
-        private readonly PhysicsSystem system;
+        private readonly PhysicsSimulatorSystem system;
 
-        public RaycastHandler(List<RaycastHit> hits, PhysicsSystem system)
+        public RaycastHandler(List<RaycastHit> hits, PhysicsSimulatorSystem system)
         {
             this.hits = hits;
             this.system = system;
