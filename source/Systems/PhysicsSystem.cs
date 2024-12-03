@@ -1,7 +1,6 @@
 ﻿using Collections;
 using Physics.Events;
 using Simulation;
-using Simulation.Functions;
 using System;
 using System.Runtime.InteropServices;
 using Unmanaged;
@@ -9,52 +8,42 @@ using Worlds;
 
 namespace Physics.Systems
 {
-    public readonly struct PhysicsSystem : ISystem
+    public readonly partial struct PhysicsSystem : ISystem
     {
         private readonly Dictionary<World, PhysicsSimulatorSystem> systems;
 
-        readonly unsafe StartSystem ISystem.Start => new(&Start);
-        readonly unsafe UpdateSystem ISystem.Update => new(&Update);
-        readonly unsafe FinishSystem ISystem.Finish => new(&Finish);
-
-        readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
+        void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
-            buffer[0] = MessageHandler.Create<RaycastRequest>(new(&HandleRaycast));
-            return 1;
-        }
-
-        [UnmanagedCallersOnly]
-        private static void Start(SystemContainer container, World world)
-        {
-            ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-            if (!system.systems.ContainsKey(world))
+            if (!systems.ContainsKey(world))
             {
-                system.systems.TryAdd(world, new PhysicsSimulatorSystem(world));
+                systems.TryAdd(world, new PhysicsSimulatorSystem(world));
             }
         }
 
-        [UnmanagedCallersOnly]
-        private static void Update(SystemContainer container, World world, TimeSpan delta)
+        void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
         {
-            ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-            ref PhysicsSimulatorSystem physicsSystem = ref system.systems.TryGetValue(world, out bool contains);
+            ref PhysicsSimulatorSystem physicsSystem = ref systems.TryGetValue(world, out bool contains);
             if (!contains)
             {
                 physicsSystem = new(world);
-                system.systems.TryAdd(world, physicsSystem);
+                systems.TryAdd(world, physicsSystem);
             }
 
             physicsSystem.Update(delta);
         }
 
-        [UnmanagedCallersOnly]
-        private static void Finish(SystemContainer container, World world)
+        void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
-            if (container.World == world)
+            if (systemContainer.World == world)
             {
-                ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-                system.CleanUp();
+                CleanUp();
             }
+        }
+
+        readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
+        {
+            buffer[0] = MessageHandler.Create<RaycastRequest>(new(&HandleRaycast));
+            return 1;
         }
 
         [UnmanagedCallersOnly]
