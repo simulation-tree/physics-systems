@@ -34,6 +34,15 @@ namespace Physics.Systems
 
         void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
+            if (systemContainer.World == world)
+            {
+                foreach (World key in systems.Keys)
+                {
+                    systems[key].Dispose();
+                }
+
+                systems.Dispose();
+            }
         }
 
         readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
@@ -60,16 +69,6 @@ namespace Physics.Systems
         public PhysicsSystem()
         {
             systems = new();
-        }
-
-        public readonly void Dispose()
-        {
-            foreach (World world in systems.Keys)
-            {
-                systems[world].Dispose();
-            }
-
-            systems.Dispose();
         }
     }
 }
