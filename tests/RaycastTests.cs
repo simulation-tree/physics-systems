@@ -19,9 +19,9 @@ namespace Physics.Tests
             base.SetUp();
             ComponentType.Register<bool>();
             ComponentType.Register<ulong>();
-            Simulator.AddSystem<TransformSystem>();
-            Simulator.AddSystem<PhysicsSystem>();
-            Simulator.AddSystem<TransformSystem>();
+            Simulator.AddSystem(new TransformSystem());
+            Simulator.AddSystem(new PhysicsSystem());
+            Simulator.AddSystem(new TransformSystem());
         }
 
         [Test]
@@ -50,16 +50,17 @@ namespace Physics.Tests
 
             bool FindProof(ulong identifier)
             {
-                bool found = false;
-                World.ForEach((in uint entity, ref bool boolean, ref ulong proofIdentifier) =>
+                ComponentQuery<bool, ulong> query = new(World);
+                foreach (var q in query)
                 {
-                    if (identifier == proofIdentifier)
+                    ref ulong id = ref q.component2;
+                    if (id == identifier)
                     {
-                        found = true;
+                        return true;
                     }
-                });
+                }
 
-                return found;
+                return false;
             }
 
             [UnmanagedCallersOnly]

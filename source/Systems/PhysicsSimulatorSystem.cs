@@ -17,15 +17,12 @@ namespace Physics.Systems
         private readonly List<RaycastHit> hits;
         private readonly List<uint> toRemove;
         private readonly List<uint> usedShapes;
-        private readonly ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery;
-        private readonly ComponentQuery<IsBody, LinearVelocity> bodyLinearVelocityQuery;
-        private readonly ComponentQuery<IsGravitySource, IsDirectionalGravity> directionalGravityQuery;
-        private readonly ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery;
         private readonly Array<BodyState> physicsObjectState;
         private readonly Dictionary<uint, CompiledBody> bodies;
         private readonly Dictionary<uint, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
-        private readonly BepuSimulation physicsSimulation;
+        private readonly List<(Vector3, float, float)> pointGravitySources;
+        private readonly BepuSimulation bepuSimulation;
         private readonly BepuBufferPool bufferPool;
         private readonly Allocation gravity;
         private readonly World world;
@@ -38,19 +35,16 @@ namespace Physics.Systems
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
             PoseIntegratorCallbacks poseIntegratorCallbacks = new(gravity, 0f, 0f);
             SolveDescription solveDescription = new(8, 1);
-            physicsSimulation = new(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
+            bepuSimulation = new(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
             hits = new();
             toRemove = new();
             usedShapes = new();
-            bodyQuery = new();
-            bodyLinearVelocityQuery = new();
-            directionalGravityQuery = new();
-            pointGravityQuery = new();
             physicsObjectState = new();
             bodies = new();
             shapes = new();
             handleToBody = new();
+            pointGravitySources = new();
         }
 
         public readonly void Dispose()
@@ -65,15 +59,12 @@ namespace Physics.Systems
                 shapes[shapeHash].Dispose();
             }
 
+            pointGravitySources.Dispose();
             handleToBody.Dispose();
             shapes.Dispose();
             bodies.Dispose();
-            pointGravityQuery.Dispose();
-            directionalGravityQuery.Dispose();
-            bodyLinearVelocityQuery.Dispose();
             physicsObjectState.Dispose();
-            bodyQuery.Dispose();
-            physicsSimulation.Dispose();
+            bepuSimulation.Dispose();
             bufferPool.Dispose();
             gravity.Dispose();
             usedShapes.Dispose();
@@ -83,43 +74,33 @@ namespace Physics.Systems
 
         public readonly void Update(TimeSpan delta)
         {
-            Vector3 globalGravity = GetGlobalGravity();
-            gravity.Write(0, globalGravity);
-            ApplyPointGravity(delta);
+            gravity.Write(GetGlobalGravity());
+            EnsureDynamicBodiesHaveVelocity();
+            ApplyPointGravity((float)delta.TotalSeconds);
             CreateAndDestroyPhysicsObjects();
 
             if (delta.Ticks > 0)
             {
-                physicsSimulation.Update(delta);
+                bepuSimulation.Update(delta);
             }
 
             CopyPhysicsObjectStateToEntities();
         }
 
-        private void ApplyPointGravity(TimeSpan delta)
+        private readonly void ApplyPointGravity(float delta)
         {
-            //todo: fault: this needs a test to verify, but in theory it should work
-            pointGravityQuery.Update(world);
-            using Array<(Vector3, float, float)> pointGravitySources = new(pointGravityQuery.Count);
-            uint index = 0;
-            foreach (var x in pointGravityQuery)
-            {
-                float force = x.Component1.force;
-                float radius = x.Component2.radius;
-                Vector3 worldPosition = x.Component3.Position;
-                pointGravitySources[index] = (worldPosition, force, radius);
-                index++;
-            }
+            FindPointGravitySources();
 
-            bodyQuery.Update(world);
-            foreach (var x in bodyQuery)
+            ComponentQuery<IsBody, LocalToWorld, LinearVelocity> bodyQuery = new(world);
+            foreach (var r in bodyQuery)
             {
-                uint bodyEntity = x.entity;
-                IsBody bodyComponent = x.Component1;
-                if (bodyComponent.type == IsBody.Type.Dynamic)
+                ref IsBody body = ref r.component1;
+                ref LocalToWorld ltw = ref r.component2;
+                ref LinearVelocity linearVelocity = ref r.component3;
+                if (body.type == IsBody.Type.Dynamic)
                 {
                     Vector3 accumulatedGravity = default;
-                    Vector3 worldPosition = x.Component2.Position;
+                    Vector3 worldPosition = ltw.Position;
                     foreach ((Vector3 sourcePosition, float force, float radius) in pointGravitySources)
                     {
                         Vector3 offset = worldPosition - sourcePosition;
@@ -136,23 +117,48 @@ namespace Physics.Systems
                     if (accumulatedGravity != default)
                     {
                         accumulatedGravity *= -1;
-                        if (!world.ContainsComponent<LinearVelocity>(bodyEntity))
-                        {
-                            world.AddComponent(bodyEntity, new LinearVelocity(accumulatedGravity * (float)delta.TotalSeconds));
-                        }
-                        else
-                        {
-                            ref LinearVelocity linearVelocity = ref world.GetComponentRef<LinearVelocity>(bodyEntity);
-                            linearVelocity.value += accumulatedGravity * (float)delta.TotalSeconds;
-                        }
+                        linearVelocity.value += accumulatedGravity * delta;
                     }
                 }
             }
         }
 
+        private readonly void FindPointGravitySources()
+        {
+            pointGravitySources.Clear();
+            ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery = new(world);
+            foreach (var r in pointGravityQuery)
+            {
+                ref IsGravitySource gravitySource = ref r.component1;
+                ref IsPointGravity pointGravity = ref r.component2;
+                ref LocalToWorld ltw = ref r.component3;
+                pointGravitySources.Add((ltw.Position, gravitySource.force, pointGravity.radius));
+            }
+        }
+
+        private readonly void EnsureDynamicBodiesHaveVelocity()
+        {
+            using Operation operation = new();
+            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world, ComponentType.GetBitSet<LinearVelocity>());
+            foreach (var r in bodiesWithoutVelocityQuery)
+            {
+                ref IsBody body = ref r.component1;
+                if (body.type == IsBody.Type.Dynamic)
+                {
+                    operation.SelectEntity(r.entity);
+                }
+            }
+
+            if (operation.Count > 0)
+            {
+                operation.AddComponent<LinearVelocity>();
+                world.Perform(operation);
+            }
+        }
+
         public readonly void PerformRaycastRequest(RaycastRequest raycast)
         {
-            BepuPhysics.Simulation simulation = physicsSimulation;
+            BepuPhysics.Simulation simulation = bepuSimulation;
             RaycastHandler handler = new(hits, this);
             simulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
             if (raycast.callback != default)
@@ -163,16 +169,16 @@ namespace Physics.Systems
             hits.Clear();
         }
 
-        public uint GetPhysicsEntity(int handle, bool isStatic)
+        public readonly uint GetPhysicsEntity(int handle, bool isStatic)
         {
             return handleToBody[(handle, isStatic)];
         }
 
-        private void CreateAndDestroyPhysicsObjects()
+        private readonly void CreateAndDestroyPhysicsObjects()
         {
             //remove shapes and bodies of entities that dont exist anymore
             toRemove.Clear();
-            BepuPhysics.Simulation simulation = physicsSimulation;
+            BepuPhysics.Simulation simulation = bepuSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
                 if (!world.ContainsEntity(bodyEntity))
@@ -203,21 +209,23 @@ namespace Physics.Systems
 
             //create shapes and bodies for entities that dont have them yet
             physicsObjectState.Length = world.MaxEntityValue + 1;
-            bodyQuery.Update(world);
             usedShapes.Clear();
+
+            ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery = new(world);
             foreach (var r in bodyQuery)
             {
-                uint bodyEntity = r.entity;
-                IsBody bodyComponent = r.Component1;
-                LocalToWorld ltw = r.Component2;
-                Shape shape = bodyComponent.shape;
+                ref IsBody body = ref r.component1;
+                ref LocalToWorld ltw = ref r.component2;
+                ref WorldRotation worldRotation = ref r.component3;
+                uint entity = r.entity;
+                Shape shape = body.shape;
                 if (shape.type == default)
                 {
-                    throw new Exception($"Physics body `{bodyEntity}` references invalid shape");
+                    throw new Exception($"Physics body `{entity}` references invalid shape");
                 }
 
                 //make sure a reusable shape exists for this combination of (type, offset, mass, scale)
-                IsBody.Type type = bodyComponent.type;
+                IsBody.Type type = body.type;
                 bool newShape = false;
                 float mass;
                 if (type == IsBody.Type.Static)
@@ -226,7 +234,7 @@ namespace Physics.Systems
                 }
                 else if (type == IsBody.Type.Dynamic)
                 {
-                    mass = world.GetComponent<Mass>(bodyEntity).value;
+                    mass = world.GetComponent<Mass>(entity).value;
                 }
                 else if (type == IsBody.Type.Kinematic)
                 {
@@ -234,7 +242,7 @@ namespace Physics.Systems
                 }
                 else
                 {
-                    throw new Exception($"Physics body `{bodyEntity}` has an unrecognized body type `{type}`");
+                    throw new Exception($"Physics body `{entity}` has an unrecognized body type `{type}`");
                 }
 
                 (Vector3 worldPosition, Quaternion ltwRotation, Vector3 scale) = ltw.Decomposed;
@@ -244,7 +252,7 @@ namespace Physics.Systems
                 if (!shapes.TryGetValue(shapeHash, out CompiledShape compiledShape))
                 {
                     compiledShape = CreateShape(shape, scale, mass);
-                    shapes.TryAdd(shapeHash, compiledShape);
+                    shapes.Add(shapeHash, compiledShape);
                     newShape = true;
                 }
 
@@ -254,37 +262,37 @@ namespace Physics.Systems
                 bool isStatic = type == IsBody.Type.Static;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
                 Vector3 desiredWorldPosition = worldPosition + worldOffset;
-                Quaternion desiredWorldRotation = r.Component3.value;
-                if (!bodies.TryGetValue(bodyEntity, out CompiledBody compiledBody))
+                Quaternion desiredWorldRotation = worldRotation.value;
+                if (!bodies.TryGetValue(entity, out CompiledBody compiledBody))
                 {
-                    compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
-                    bodies.TryAdd(bodyEntity, compiledBody);
-                    handleToBody.TryAdd((compiledBody.handle, isStatic), bodyEntity);
+                    compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
+                    bodies.Add(entity, compiledBody);
+                    handleToBody.Add((compiledBody.handle, isStatic), entity);
                 }
-                else if (compiledBody.version != bodyComponent.version || compiledBody.type != type || newShape)
+                else if (compiledBody.version != body.version || compiledBody.type != type || newShape)
                 {
                     handleToBody.Remove((compiledBody.handle, isStatic));
                     if (isStatic)
                     {
-                        simulation.Statics.Remove(compiledBody.StaticBody);
+                        bepuSimulation.RemoveStaticBody(compiledBody.StaticBody);
                     }
                     else
                     {
-                        simulation.Bodies.Remove(compiledBody.DynamicBody);
+                        bepuSimulation.RemoveDynamicBody(compiledBody.DynamicBody);
                     }
 
                     compiledBody.Dispose();
-                    compiledBody = CreateBody(bodyComponent, compiledShape, desiredWorldPosition, desiredWorldRotation);
+                    compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
                     isStatic = compiledBody.type == IsBody.Type.Static;
-                    bodies[bodyEntity] = compiledBody;
-                    handleToBody.TryAdd((compiledBody.handle, isStatic), bodyEntity);
+                    bodies[entity] = compiledBody;
+                    handleToBody.Add((compiledBody.handle, isStatic), entity);
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
-                ref BodyState state = ref physicsObjectState[bodyEntity];
+                ref BodyState state = ref physicsObjectState[entity];
                 if (isStatic)
                 {
-                    StaticReference staticReference = simulation.Statics[compiledBody.StaticBody];
+                    StaticReference staticReference = bepuSimulation.GetStaticBody(compiledBody.StaticBody);
                     if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                     {
                         state.position = desiredWorldPosition;
@@ -297,7 +305,7 @@ namespace Physics.Systems
                 }
                 else
                 {
-                    BodyReference bodyReference = simulation.Bodies[compiledBody.DynamicBody];
+                    BodyReference bodyReference = bepuSimulation.GetDynamicBody(compiledBody.DynamicBody);
                     if (state.position != desiredWorldPosition || state.rotation != desiredWorldRotation)
                     {
                         ref RigidPose pose = ref bodyReference.Pose;
@@ -306,8 +314,8 @@ namespace Physics.Systems
                         bodyReference.Awake = true;
                     }
 
-                    Vector3 linearVelocity = world.GetComponent(bodyEntity, new LinearVelocity()).value; //optional
-                    Vector3 angularVelocity = world.GetComponent(bodyEntity, new AngularVelocity()).value; //optional
+                    Vector3 linearVelocity = world.GetComponent(entity, new LinearVelocity()).value; //optional
+                    Vector3 angularVelocity = world.GetComponent(entity, new AngularVelocity()).value; //optional
                     if (state.linearVelocity != linearVelocity || state.angularVelocity != angularVelocity)
                     {
                         ref BodyVelocity velocity = ref bodyReference.Velocity;
@@ -336,9 +344,9 @@ namespace Physics.Systems
             }
         }
 
-        private void CopyPhysicsObjectStateToEntities()
+        private readonly void CopyPhysicsObjectStateToEntities()
         {
-            BepuPhysics.Simulation simulation = physicsSimulation;
+            BepuPhysics.Simulation simulation = bepuSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
                 CompiledBody body = bodies[bodyEntity];
@@ -362,7 +370,7 @@ namespace Physics.Systems
                     }
                     else
                     {
-                        ref WorldBounds bounds = ref world.GetComponentRef<WorldBounds>(bodyEntity);
+                        ref WorldBounds bounds = ref world.GetComponent<WorldBounds>(bodyEntity);
                         bounds.min = staticReference.BoundingBox.Min;
                         bounds.max = staticReference.BoundingBox.Max;
                     }
@@ -399,11 +407,11 @@ namespace Physics.Systems
                         world.AddComponent<AngularVelocity>(bodyEntity);
                     }
 
-                    ref Position localPosition = ref world.GetComponentRef<Position>(bodyEntity);
+                    ref Position localPosition = ref world.GetComponent<Position>(bodyEntity);
                     Vector3 finalWorldPosition = pose.Position - worldOffset;
                     localPosition.value = Vector3.Transform(finalWorldPosition, wtl);
 
-                    ref Rotation localRotation = ref world.GetComponentRef<Rotation>(bodyEntity);
+                    ref Rotation localRotation = ref world.GetComponent<Rotation>(bodyEntity);
                     Quaternion finalWorldRotation = pose.Orientation;
                     if (bodyParent != default)
                     {
@@ -414,11 +422,11 @@ namespace Physics.Systems
                         localRotation.value = finalWorldRotation;
                     }
 
-                    ref LinearVelocity linearVelocity = ref world.GetComponentRef<LinearVelocity>(bodyEntity);
+                    ref LinearVelocity linearVelocity = ref world.GetComponent<LinearVelocity>(bodyEntity);
                     BodyVelocity velocity = bodyReference.Velocity;
                     linearVelocity.value = velocity.Linear;
 
-                    ref AngularVelocity angularVelocity = ref world.GetComponentRef<AngularVelocity>(bodyEntity);
+                    ref AngularVelocity angularVelocity = ref world.GetComponent<AngularVelocity>(bodyEntity);
                     angularVelocity.value = velocity.Angular;
                     physicsObjectState[bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
 
@@ -429,7 +437,7 @@ namespace Physics.Systems
                     }
                     else
                     {
-                        ref WorldBounds bounds = ref world.GetComponentRef<WorldBounds>(bodyEntity);
+                        ref WorldBounds bounds = ref world.GetComponent<WorldBounds>(bodyEntity);
                         bounds.min = bodyReference.BoundingBox.Min;
                         bounds.max = bodyReference.BoundingBox.Max;
                     }
@@ -439,9 +447,9 @@ namespace Physics.Systems
             }
         }
 
-        private CompiledShape CreateShape(Shape shape, Vector3 scale, float mass)
+        private readonly CompiledShape CreateShape(Shape shape, Vector3 scale, float mass)
         {
-            BepuPhysics.Simulation simulation = physicsSimulation;
+            BepuPhysics.Simulation simulation = bepuSimulation;
             Vector3 offset = shape.offset;
             if (shape.Is(out CubeShape cube))
             {
@@ -465,9 +473,9 @@ namespace Physics.Systems
             }
         }
 
-        private CompiledBody CreateBody(IsBody bodyComponent, CompiledShape shape, Vector3 worldPosition, Quaternion worldRotation)
+        private readonly CompiledBody CreateBody(IsBody bodyComponent, CompiledShape shape, Vector3 worldPosition, Quaternion worldRotation)
         {
-            BepuPhysics.Simulation simulation = physicsSimulation;
+            BepuPhysics.Simulation simulation = bepuSimulation;
             IsBody.Type type = bodyComponent.type;
             RigidPose pose = new(worldPosition, worldRotation);
             ContinuousDetection continuity = ContinuousDetection.Discrete;
@@ -502,18 +510,19 @@ namespace Physics.Systems
             return new(version, handle, type);
         }
 
-        private Vector3 GetGlobalGravity()
+        private readonly Vector3 GetGlobalGravity()
         {
-            Vector3 force = default;
-            directionalGravityQuery.Update(world);
-            foreach (var x in directionalGravityQuery)
+            Vector3 totalGravity = default;
+            ComponentQuery<IsGravitySource, IsDirectionalGravity, LocalToWorld> directionalGravityQuery = new(world);
+            foreach (var r in directionalGravityQuery)
             {
-                LocalToWorld ltw = world.GetComponent<LocalToWorld>(x.entity);
-                Vector3 forward = ltw.Forward;
-                force += forward * x.Component1.force;
+                ref IsGravitySource gravitySource = ref r.component1;
+                ref IsDirectionalGravity tag = ref r.component2;
+                ref LocalToWorld ltw = ref r.component3;
+                totalGravity += ltw.Forward * gravitySource.force;
             }
 
-            return force;
+            return totalGravity;
         }
 
         private static uint GetHash(Shape shape, IsBody.Type type, Vector3 scale, float mass)

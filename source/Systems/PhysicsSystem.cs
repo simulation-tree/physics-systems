@@ -16,7 +16,7 @@ namespace Physics.Systems
         {
             if (!systems.ContainsKey(world))
             {
-                systems.TryAdd(world, new PhysicsSimulatorSystem(world));
+                systems.Add(world, new PhysicsSimulatorSystem(world));
             }
         }
 
@@ -26,7 +26,7 @@ namespace Physics.Systems
             if (!contains)
             {
                 physicsSystem = new(world);
-                systems.TryAdd(world, physicsSystem);
+                systems.Add(world, physicsSystem);
             }
 
             physicsSystem.Update(delta);
@@ -34,10 +34,6 @@ namespace Physics.Systems
 
         void ISystem.Finish(in SystemContainer systemContainer, in World world)
         {
-            if (systemContainer.World == world)
-            {
-                CleanUp();
-            }
         }
 
         readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
@@ -55,7 +51,7 @@ namespace Physics.Systems
             if (!contains)
             {
                 physicsSystem = new(world);
-                system.systems.TryAdd(world, physicsSystem);
+                system.systems.Add(world, physicsSystem);
             }
 
             physicsSystem.PerformRaycastRequest(raycast);
@@ -66,7 +62,7 @@ namespace Physics.Systems
             systems = new();
         }
 
-        private readonly void CleanUp()
+        public readonly void Dispose()
         {
             foreach (World world in systems.Keys)
             {
