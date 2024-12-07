@@ -19,9 +19,9 @@ namespace Physics.Tests
             base.SetUp();
             ComponentType.Register<bool>();
             ComponentType.Register<ulong>();
-            Simulator.AddSystem(new TransformSystem());
-            Simulator.AddSystem(new PhysicsSystem());
-            Simulator.AddSystem(new TransformSystem());
+            Simulator.AddSystem<TransformSystem>();
+            Simulator.AddSystem<PhysicsSystem>();
+            Simulator.AddSystem<TransformSystem>();
         }
 
         [Test]

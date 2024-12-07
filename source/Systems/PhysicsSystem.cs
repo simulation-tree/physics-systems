@@ -12,8 +12,19 @@ namespace Physics.Systems
     {
         private readonly Dictionary<World, PhysicsSimulatorSystem> systems;
 
+        private PhysicsSystem(Dictionary<World, PhysicsSimulatorSystem> systems)
+        {
+            this.systems = systems;
+        }
+
         void ISystem.Start(in SystemContainer systemContainer, in World world)
         {
+            if (systemContainer.World == world)
+            {
+                Dictionary<World, PhysicsSimulatorSystem> systems = new();
+                systemContainer.Write(new PhysicsSystem(systems));
+            }
+
             if (!systems.ContainsKey(world))
             {
                 systems.Add(world, new PhysicsSimulatorSystem(world));

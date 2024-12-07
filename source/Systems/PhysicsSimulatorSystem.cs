@@ -208,7 +208,12 @@ namespace Physics.Systems
             }
 
             //create shapes and bodies for entities that dont have them yet
-            physicsObjectState.Length = world.MaxEntityValue + 1;
+            uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
+            if (physicsObjectState.Length < capacity)
+            {
+                physicsObjectState.Length = capacity;
+            }
+
             usedShapes.Clear();
 
             ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery = new(world);
