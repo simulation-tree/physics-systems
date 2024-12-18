@@ -26,6 +26,7 @@ namespace Physics.Systems
         private readonly BepuBufferPool bufferPool;
         private readonly Allocation gravity;
         private readonly World world;
+        private readonly Operation operation;
 
         public PhysicsSimulatorSystem(World world)
         {
@@ -45,10 +46,13 @@ namespace Physics.Systems
             shapes = new();
             handleToBody = new();
             pointGravitySources = new();
+            operation = new();
         }
 
         public readonly void Dispose()
         {
+            operation.Dispose();
+
             foreach (uint bodyEntity in bodies.Keys)
             {
                 bodies[bodyEntity].Dispose();
@@ -138,7 +142,6 @@ namespace Physics.Systems
 
         private readonly void EnsureDynamicBodiesHaveVelocity()
         {
-            using Operation operation = new();
             ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world, ComponentType.GetBitSet<LinearVelocity>());
             foreach (var r in bodiesWithoutVelocityQuery)
             {
@@ -153,6 +156,7 @@ namespace Physics.Systems
             {
                 operation.AddComponent<LinearVelocity>();
                 world.Perform(operation);
+                operation.Clear();
             }
         }
 
