@@ -1,7 +1,6 @@
 ﻿using Physics.Components;
 using Physics.Events;
 using Physics.Systems;
-using Simulation;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -17,40 +16,38 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            ComponentType.Register<bool>();
-            ComponentType.Register<ulong>();
-            Simulator.AddSystem<TransformSystem>();
-            Simulator.AddSystem<PhysicsSystem>();
-            Simulator.AddSystem<TransformSystem>();
+            simulator.AddSystem<TransformSystem>();
+            simulator.AddSystem<PhysicsSystem>();
+            simulator.AddSystem<TransformSystem>();
         }
 
         [Test]
         public unsafe void RaycastWithResults()
         {
-            Body cubeBody = new(World, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body cubeBody = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
             Transform cubeTransform = cubeBody;
 
             cubeTransform.LocalPosition = new(0, 0, 5);
-            Simulator.Update(TimeSpan.FromSeconds(0.01f));
+            simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
+            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
             Assert.That(FindProof(0), Is.True);
 
             cubeTransform.LocalPosition = new(0, 0, 10);
-            Simulator.Update(TimeSpan.FromSeconds(0.01f));
+            simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
+            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
             Assert.That(FindProof(1), Is.True);
 
             cubeTransform.LocalPosition = new(5, 0, 0);
-            Simulator.Update(TimeSpan.FromSeconds(0.01f));
+            simulator.Update(TimeSpan.FromSeconds(0.01f));
 
-            Simulator.TryHandleMessage(new RaycastRequest(World, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
+            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
             Assert.That(FindProof(2), Is.True);
 
             bool FindProof(ulong identifier)
             {
-                ComponentQuery<bool, ulong> query = new(World);
+                ComponentQuery<bool, ulong> query = new(world);
                 foreach (var q in query)
                 {
                     ref ulong id = ref q.component2;

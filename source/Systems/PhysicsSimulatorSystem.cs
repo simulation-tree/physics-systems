@@ -142,7 +142,8 @@ namespace Physics.Systems
 
         private readonly void EnsureDynamicBodiesHaveVelocity()
         {
-            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world, ComponentType.GetBitSet<LinearVelocity>());
+            Schema schema = world.Schema;
+            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world, schema.GetComponents<LinearVelocity>());
             foreach (var r in bodiesWithoutVelocityQuery)
             {
                 ref IsBody body = ref r.component1;
@@ -154,7 +155,7 @@ namespace Physics.Systems
 
             if (operation.Count > 0)
             {
-                operation.AddComponent<LinearVelocity>();
+                operation.AddComponent<LinearVelocity>(schema);
                 world.Perform(operation);
                 operation.Clear();
             }

@@ -7,27 +7,49 @@ namespace Physics.Tests
 {
     public abstract class PhysicsTests : SimulationTests
     {
+        static PhysicsTests()
+        {
+            TypeLayout.Register<IsTransform>("IsTransform");
+            TypeLayout.Register<Position>("Position");
+            TypeLayout.Register<Rotation>("Rotation");
+            TypeLayout.Register<Scale>("Scale");
+            TypeLayout.Register<LocalToWorld>("LocalToWorld");
+            TypeLayout.Register<Pivot>("Pivot");
+            TypeLayout.Register<Anchor>("Anchor");
+            TypeLayout.Register<WorldRotation>("WorldRotation");
+            TypeLayout.Register<EulerAngles>("EulerAngles");
+            TypeLayout.Register<IsBody>("IsBody");
+            TypeLayout.Register<LinearVelocity>("LinearVelocity");
+            TypeLayout.Register<AngularVelocity>("AngularVelocity");
+            TypeLayout.Register<IsGravitySource>("IsGravitySource");
+            TypeLayout.Register<IsDirectionalGravity>("IsDirectionalGravity");
+            TypeLayout.Register<IsPointGravity>("IsPointGravity");
+            TypeLayout.Register<GravityScale>("GravityScale");
+            TypeLayout.Register<Mass>("Mass");
+            TypeLayout.Register<WorldBounds>("WorldBounds");
+        }
+
         protected override void SetUp()
         {
             base.SetUp();
-            ComponentType.Register<IsTransform>();
-            ComponentType.Register<Position>();
-            ComponentType.Register<Rotation>();
-            ComponentType.Register<Scale>();
-            ComponentType.Register<LocalToWorld>();
-            ComponentType.Register<Pivot>();
-            ComponentType.Register<Anchor>();
-            ComponentType.Register<WorldRotation>();
-            ComponentType.Register<EulerAngles>();
-            ComponentType.Register<IsBody>();
-            ComponentType.Register<LinearVelocity>();
-            ComponentType.Register<AngularVelocity>();
-            ComponentType.Register<IsGravitySource>();
-            ComponentType.Register<IsDirectionalGravity>();
-            ComponentType.Register<IsPointGravity>();
-            ComponentType.Register<GravityScale>();
-            ComponentType.Register<Mass>();
-            ComponentType.Register<WorldBounds>();
+            world.Schema.RegisterComponent<IsTransform>();
+            world.Schema.RegisterComponent<Position>();
+            world.Schema.RegisterComponent<Rotation>();
+            world.Schema.RegisterComponent<Scale>();
+            world.Schema.RegisterComponent<LocalToWorld>();
+            world.Schema.RegisterComponent<Pivot>();
+            world.Schema.RegisterComponent<Anchor>();
+            world.Schema.RegisterComponent<WorldRotation>();
+            world.Schema.RegisterComponent<EulerAngles>();
+            world.Schema.RegisterComponent<IsBody>();
+            world.Schema.RegisterComponent<LinearVelocity>();
+            world.Schema.RegisterComponent<AngularVelocity>();
+            world.Schema.RegisterComponent<IsGravitySource>();
+            world.Schema.RegisterComponent<IsDirectionalGravity>();
+            world.Schema.RegisterComponent<IsPointGravity>();
+            world.Schema.RegisterComponent<GravityScale>();
+            world.Schema.RegisterComponent<Mass>();
+            world.Schema.RegisterComponent<WorldBounds>();
         }
     }
 }
