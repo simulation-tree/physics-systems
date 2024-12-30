@@ -143,7 +143,8 @@ namespace Physics.Systems
         private readonly void EnsureDynamicBodiesHaveVelocity()
         {
             Schema schema = world.Schema;
-            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world, schema.GetComponents<LinearVelocity>());
+            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world);
+            bodiesWithoutVelocityQuery.ExcludeComponent<LinearVelocity>();
             foreach (var r in bodiesWithoutVelocityQuery)
             {
                 ref IsBody body = ref r.component1;
