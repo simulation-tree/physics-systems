@@ -9,24 +9,24 @@ namespace Physics.Tests
     {
         static PhysicsTests()
         {
-            TypeLayout.Register<IsTransform>("IsTransform");
-            TypeLayout.Register<Position>("Position");
-            TypeLayout.Register<Rotation>("Rotation");
-            TypeLayout.Register<Scale>("Scale");
-            TypeLayout.Register<LocalToWorld>("LocalToWorld");
-            TypeLayout.Register<Pivot>("Pivot");
-            TypeLayout.Register<Anchor>("Anchor");
-            TypeLayout.Register<WorldRotation>("WorldRotation");
-            TypeLayout.Register<EulerAngles>("EulerAngles");
-            TypeLayout.Register<IsBody>("IsBody");
-            TypeLayout.Register<LinearVelocity>("LinearVelocity");
-            TypeLayout.Register<AngularVelocity>("AngularVelocity");
-            TypeLayout.Register<IsGravitySource>("IsGravitySource");
-            TypeLayout.Register<IsDirectionalGravity>("IsDirectionalGravity");
-            TypeLayout.Register<IsPointGravity>("IsPointGravity");
-            TypeLayout.Register<GravityScale>("GravityScale");
-            TypeLayout.Register<Mass>("Mass");
-            TypeLayout.Register<WorldBounds>("WorldBounds");
+            TypeLayout.Register<IsTransform>();
+            TypeLayout.Register<Position>();
+            TypeLayout.Register<Rotation>();
+            TypeLayout.Register<Scale>();
+            TypeLayout.Register<LocalToWorld>();
+            TypeLayout.Register<Pivot>();
+            TypeLayout.Register<Anchor>();
+            TypeLayout.Register<WorldRotation>();
+            TypeLayout.Register<EulerAngles>();
+            TypeLayout.Register<IsBody>();
+            TypeLayout.Register<LinearVelocity>();
+            TypeLayout.Register<AngularVelocity>();
+            TypeLayout.Register<IsGravitySource>();
+            TypeLayout.Register<IsDirectionalGravity>();
+            TypeLayout.Register<IsPointGravity>();
+            TypeLayout.Register<GravityScale>();
+            TypeLayout.Register<Mass>();
+            TypeLayout.Register<WorldBounds>();
         }
 
         protected override void SetUp()
