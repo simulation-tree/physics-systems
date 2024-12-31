@@ -162,7 +162,7 @@ namespace Physics.Tests
             //45 degrees on y axis
             Quaternion rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI * 0.25f);
             Transform cubeTransform = cubeBody;
-            cubeTransform.WorldRotation = rotation;
+            cubeTransform.LocalRotation = rotation;
             simulator.Update(TimeSpan.FromSeconds(0.1f));
 
             (min, max) = cubeBody.Bounds;

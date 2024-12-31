@@ -79,7 +79,7 @@ namespace Physics.Systems
         public readonly void Update(TimeSpan delta)
         {
             gravity.Write(GetGlobalGravity());
-            EnsureDynamicBodiesHaveVelocity();
+            AddMissingComponents();
             ApplyPointGravity((float)delta.TotalSeconds);
             CreateAndDestroyPhysicsObjects();
 
@@ -140,23 +140,92 @@ namespace Physics.Systems
             }
         }
 
-        private readonly void EnsureDynamicBodiesHaveVelocity()
+        private readonly void AddMissingComponents()
         {
             Schema schema = world.Schema;
+
+            //make sure linear velocity exists
             ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world);
             bodiesWithoutVelocityQuery.ExcludeComponent<LinearVelocity>();
+            bool changed = false;
             foreach (var r in bodiesWithoutVelocityQuery)
             {
                 ref IsBody body = ref r.component1;
                 if (body.type == IsBody.Type.Dynamic)
                 {
                     operation.SelectEntity(r.entity);
+                    changed = true;
                 }
+            }
+
+            if (changed)
+            {
+                operation.AddComponent<LinearVelocity>(schema);
+                operation.ClearSelection();
+                changed = false;
+            }
+
+            //make sure angular velocity is present
+            ComponentQuery<IsBody> bodeiesWithoutAngularVelocity = new(world);
+            bodeiesWithoutAngularVelocity.ExcludeComponent<AngularVelocity>();
+            foreach (var r in bodeiesWithoutAngularVelocity)
+            {
+                ref IsBody body = ref r.component1;
+                if (body.type == IsBody.Type.Dynamic)
+                {
+                    operation.SelectEntity(r.entity);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                operation.AddComponent<AngularVelocity>(schema);
+                operation.ClearSelection();
+                changed = false;
+            }
+
+            //make sure position exists
+            ComponentQuery<IsBody, LocalToWorld> positionMissingQuery = new(world);
+            positionMissingQuery.ExcludeComponent<Position>();
+            foreach (var r in positionMissingQuery)
+            {
+                ref IsBody body = ref r.component1;
+                if (body.type != IsBody.Type.Static)
+                {
+                    operation.SelectEntity(r.entity);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                operation.AddComponent<Position>(schema);
+                operation.ClearSelection();
+                changed = false;
+            }
+
+            //make sure rotation exists
+            ComponentQuery<IsBody, LocalToWorld> rotationMissingQuery = new(world);
+            rotationMissingQuery.ExcludeComponent<Rotation>();
+            foreach (var r in rotationMissingQuery)
+            {
+                ref IsBody body = ref r.component1;
+                if (body.type != IsBody.Type.Static)
+                {
+                    operation.SelectEntity(r.entity);
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                operation.AddComponent<Rotation>(schema);
+                operation.ClearSelection();
             }
 
             if (operation.Count > 0)
             {
-                operation.AddComponent<LinearVelocity>(schema);
                 world.Perform(operation);
                 operation.Clear();
             }
@@ -190,7 +259,6 @@ namespace Physics.Systems
                 if (!world.ContainsEntity(bodyEntity))
                 {
                     CompiledBody body = bodies[bodyEntity];
-                    int handle = body.handle;
                     bool isStatic = body.type == IsBody.Type.Static;
                     handleToBody.Remove((body.handle, isStatic));
                     if (isStatic)
@@ -397,27 +465,7 @@ namespace Physics.Systems
 
                     //copy into individual local components
                     BodyReference bodyReference = simulation.Bodies[body.DynamicBody];
-                    RigidPose pose = bodyReference.Pose;
-                    if (!world.ContainsComponent<Position>(bodyEntity))
-                    {
-                        world.AddComponent<Position>(bodyEntity);
-                    }
-
-                    if (!world.ContainsComponent<Rotation>(bodyEntity))
-                    {
-                        world.AddComponent<Rotation>(bodyEntity);
-                    }
-
-                    if (!world.ContainsComponent<LinearVelocity>(bodyEntity))
-                    {
-                        world.AddComponent<LinearVelocity>(bodyEntity);
-                    }
-
-                    if (!world.ContainsComponent<AngularVelocity>(bodyEntity))
-                    {
-                        world.AddComponent<AngularVelocity>(bodyEntity);
-                    }
-
+                    ref RigidPose pose = ref bodyReference.Pose;
                     ref Position localPosition = ref world.GetComponent<Position>(bodyEntity);
                     Vector3 finalWorldPosition = pose.Position - worldOffset;
                     localPosition.value = Vector3.Transform(finalWorldPosition, wtl);
@@ -452,8 +500,6 @@ namespace Physics.Systems
                         bounds.min = bodyReference.BoundingBox.Min;
                         bounds.max = bodyReference.BoundingBox.Max;
                     }
-
-                    //calculate local to world
                 }
             }
         }
