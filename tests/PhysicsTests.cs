@@ -32,7 +32,7 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            world.Schema.RegisterComponent<IsTransform>();
+            world.Schema.RegisterTag<IsTransform>();
             world.Schema.RegisterComponent<Position>();
             world.Schema.RegisterComponent<Rotation>();
             world.Schema.RegisterComponent<Scale>();
