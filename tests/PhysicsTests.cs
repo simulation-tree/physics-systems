@@ -1,7 +1,7 @@
 ﻿using Physics.Components;
 using Simulation.Tests;
 using Transforms.Components;
-using Worlds;
+using Types;
 
 namespace Physics.Tests
 {
