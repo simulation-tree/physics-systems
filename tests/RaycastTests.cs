@@ -45,13 +45,13 @@ namespace Physics.Tests
             simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
             Assert.That(FindProof(2), Is.True);
 
-            bool FindProof(ulong identifier)
+            bool FindProof(ulong userData)
             {
                 ComponentQuery<bool, ulong> query = new(world);
                 foreach (var q in query)
                 {
                     ref ulong id = ref q.component2;
-                    if (id == identifier)
+                    if (id == userData)
                     {
                         return true;
                     }
@@ -65,22 +65,22 @@ namespace Physics.Tests
             {
                 uint proofEntity = world.CreateEntity();
                 world.AddComponent(proofEntity, true);
-                world.AddComponent(proofEntity, raycast.identifier);
+                world.AddComponent(proofEntity, raycast.userData);
 
                 USpan<RaycastHit> hits = new(hitsPointer, hitsLength);
-                if (raycast.identifier == 0)
+                if (raycast.userData == 0)
                 {
                     Assert.That(hits.Length, Is.EqualTo(1));
                     RaycastHit hit = hits[0];
                     Assert.That(hit.distance, Is.EqualTo(4.5f).Within(0.1f));
                 }
-                else if (raycast.identifier == 1)
+                else if (raycast.userData == 1)
                 {
                     Assert.That(hits.Length, Is.EqualTo(1));
                     RaycastHit hit = hits[0];
                     Assert.That(hit.distance, Is.EqualTo(9.5f).Within(0.1f));
                 }
-                else if (raycast.identifier == 2)
+                else if (raycast.userData == 2)
                 {
                     Assert.That(hits.Length, Is.EqualTo(0));
                 }
