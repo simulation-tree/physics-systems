@@ -5,16 +5,6 @@
 		<ImplicitUsings>disable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<IsAotCompatible>True</IsAotCompatible>
-		<IsTrimmable>True</IsTrimmable>
-		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-		<WarningLevel>8</WarningLevel>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<IsAotCompatible>True</IsAotCompatible>
 		<IsTrimmable>True</IsTrimmable>
 		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
