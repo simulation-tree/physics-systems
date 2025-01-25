@@ -1,26 +1,13 @@
-name: Test
+name: Publish
 
 on:
-  workflow_dispatch:
   push:
-    paths:
-      - '**/*.cs'
-      - '**/*.csproj'
-      - '.github/workflows/test.yml'
-    branches:
-      - main
-      - dev
-      - dev/**
+    tags:
+      - 'v*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      statuses: write
-      checks: write
-      contents: write
-      pull-requests: write
-      actions: write
 
     steps:
       - name: Checkout
@@ -83,21 +70,28 @@ jobs:
           repository: game-simulations/transform-systems
           token: ${{ secrets.PAT }}
           path: transform-systems
-
+      
       - name: Setup dotnet
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      - name: Test project
-        run: dotnet test "${{ github.event.repository.name }}/tests" -c Debug --logger "trx"
+      - name: Set VERSION variable from tag
+        run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
 
-      - name: Publish Report
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          working-directory:  ${{ github.event.repository.name }}
-          name: Report
-          path: 'tests/TestResults/*.trx'
-          reporter: dotnet-trx
-          fail-on-error: false
+      - name: Build Source
+        run: dotnet build "${{ github.event.repository.name }}/source" -c Release /p:Version=${VERSION}
+      
+      - name: Test
+        run: dotnet test "${{ github.event.repository.name }}/tests" -c Release
+
+      - name: Pack Source
+        run: dotnet pack "${{ github.event.repository.name }}/source" -c Release /p:Version=${VERSION} --no-build --output .
+
+      - name: Add source
+        run: dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json --name github --username ${{ github.repository_owner }} --password ${{ github.token }} --store-password-in-clear-text
+      
+      - name: Push Source
+        run: dotnet nuget push Physics.Systems.${VERSION}.nupkg --source github --api-key ${NUGET_TOKEN}
+        env:
+          NUGET_TOKEN: ${{ secrets.NUGET_TOKEN }}

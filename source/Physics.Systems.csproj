@@ -9,6 +9,10 @@
 		<IsTrimmable>True</IsTrimmable>
 		<TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 		<WarningLevel>8</WarningLevel>
+		<Title>Physics Systems</Title>
+		<Authors>popcron</Authors>
+		<Company>game-simulations</Company>
+		<RepositoryUrl>https://github.com/game-simulations/physics-systems</RepositoryUrl>
 	</PropertyGroup>
 
 	<ItemGroup>
