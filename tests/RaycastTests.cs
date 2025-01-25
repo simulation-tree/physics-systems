@@ -1,26 +1,16 @@
 ﻿using Physics.Components;
 using Physics.Events;
-using Physics.Systems;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms;
-using Transforms.Systems;
 using Unmanaged;
 using Worlds;
 
 namespace Physics.Tests
 {
-    public class RaycastTests : PhysicsTests
+    public class RaycastTests : PhysicsSystemsTests
     {
-        protected override void SetUp()
-        {
-            base.SetUp();
-            simulator.AddSystem<TransformSystem>();
-            simulator.AddSystem<PhysicsSystem>();
-            simulator.AddSystem<TransformSystem>();
-        }
-
         [Test]
         public unsafe void RaycastWithResults()
         {

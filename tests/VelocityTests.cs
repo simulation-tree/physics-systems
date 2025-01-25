@@ -1,22 +1,12 @@
 ﻿using Physics.Components;
-using Physics.Systems;
 using System;
 using System.Numerics;
 using Transforms;
-using Transforms.Systems;
 
 namespace Physics.Tests
 {
-    public class VelocityTests : PhysicsTests
+    public class VelocityTests : PhysicsSystemsTests
     {
-        protected override void SetUp()
-        {
-            base.SetUp();
-            simulator.AddSystem<TransformSystem>();
-            simulator.AddSystem<PhysicsSystem>();
-            simulator.AddSystem<TransformSystem>();
-        }
-
         [Test]
         public void PushRockForward()
         {
