@@ -1,5 +1,6 @@
 ﻿using Physics.Systems;
 using Simulation.Tests;
+using Transforms;
 using Transforms.Systems;
 using Types;
 using Worlds;
@@ -10,8 +11,8 @@ namespace Physics.Tests
     {
         static PhysicsSystemsTests()
         {
-            TypeRegistry.Load<Physics.TypeBank>();
-            TypeRegistry.Load<Transforms.TypeBank>();
+            TypeRegistry.Load<PhysicsTypeBank>();
+            TypeRegistry.Load<TransformsTypeBank>();
         }
 
         protected override void SetUp()
@@ -25,8 +26,8 @@ namespace Physics.Tests
         protected override Schema CreateSchema()
         {
             Schema schema = base.CreateSchema();
-            schema.Load<Physics.SchemaBank>();
-            schema.Load<Transforms.SchemaBank>();
+            schema.Load<PhysicsSchemaBank>();
+            schema.Load<TransformsSchemaBank>();
             return schema;
         }
     }
