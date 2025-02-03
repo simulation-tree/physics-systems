@@ -1,5 +1,4 @@
-﻿using Physics.Components;
-using System;
+﻿using System;
 using System.Numerics;
 using Transforms;
 
@@ -10,7 +9,7 @@ namespace Physics.Tests
         [Test]
         public void PushRockForward()
         {
-            Body rock = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body rock = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             rock.LinearVelocity = new(1, 0, 0);
 
             simulator.Update(TimeSpan.FromSeconds(1f));
@@ -30,7 +29,7 @@ namespace Physics.Tests
         [Test]
         public void FreeFall2Seconds()
         {
-            Body rock = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body rock = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
             Transform rockTransform = rock;
 
@@ -43,7 +42,7 @@ namespace Physics.Tests
 
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
 
-            Body otherRock = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body otherRock = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             Transform otherRockTransform = otherRock;
             otherRockTransform.LocalPosition = new(2, 0, 0);
 
@@ -64,7 +63,7 @@ namespace Physics.Tests
         [Test]
         public void ThrowRockAgainstGravity()
         {
-            Body rock = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body rock = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             rock.LinearVelocity = new(4, 4, 0);
 
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
@@ -86,11 +85,11 @@ namespace Physics.Tests
         {
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
 
-            Body ball = new(world, new SphereShape(0.5f), IsBody.Type.Dynamic);
+            Body ball = new(world, new SphereShape(0.5f), BodyType.Dynamic);
             Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
 
-            Body floor = new(world, new CubeShape(5f, 0.5f, 5f), IsBody.Type.Static);
+            Body floor = new(world, new CubeShape(5f, 0.5f, 5f), BodyType.Static);
 
             simulator.Update(TimeSpan.FromSeconds(4f));
 
@@ -107,11 +106,11 @@ namespace Physics.Tests
         {
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
 
-            Body ball = new(world, new SphereShape(0.5f), IsBody.Type.Dynamic);
+            Body ball = new(world, new SphereShape(0.5f), BodyType.Dynamic);
             Transform ballTransform = ball;
             ballTransform.LocalPosition = new(0f, 5f, 0f);
 
-            Body platform = new(world, new CubeShape(5f, 0.5f, 5f), IsBody.Type.Kinematic, new(0, 1, 0)); //platform moves up
+            Body platform = new(world, new CubeShape(5f, 0.5f, 5f), BodyType.Kinematic, new(0, 1, 0)); //platform moves up
 
             simulator.Update(TimeSpan.FromSeconds(4f));
 
@@ -126,7 +125,7 @@ namespace Physics.Tests
         [Test]
         public void CheckCalculatedBounds()
         {
-            Body cubeBody = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body cubeBody = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             simulator.Update(TimeSpan.FromSeconds(0.1f));
 
             (Vector3 min, Vector3 max) = cubeBody.Bounds;

@@ -1,5 +1,4 @@
-﻿using Physics.Components;
-using Physics.Events;
+﻿using Physics.Events;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -14,7 +13,7 @@ namespace Physics.Tests
         [Test]
         public unsafe void RaycastWithResults()
         {
-            Body cubeBody = new(world, new CubeShape(0.5f), IsBody.Type.Dynamic);
+            Body cubeBody = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             Transform cubeTransform = cubeBody;
 
             cubeTransform.LocalPosition = new(0, 0, 5);

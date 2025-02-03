@@ -101,7 +101,7 @@ namespace Physics.Systems
                 ref IsBody body = ref r.component1;
                 ref LocalToWorld ltw = ref r.component2;
                 ref LinearVelocity linearVelocity = ref r.component3;
-                if (body.type == IsBody.Type.Dynamic)
+                if (body.type == BodyType.Dynamic)
                 {
                     Vector3 accumulatedGravity = default;
                     Vector3 worldPosition = ltw.Position;
@@ -151,7 +151,7 @@ namespace Physics.Systems
             foreach (var r in bodiesWithoutVelocityQuery)
             {
                 ref IsBody body = ref r.component1;
-                if (body.type == IsBody.Type.Dynamic)
+                if (body.type == BodyType.Dynamic)
                 {
                     operation.SelectEntity(r.entity);
                     changed = true;
@@ -171,7 +171,7 @@ namespace Physics.Systems
             foreach (var r in bodeiesWithoutAngularVelocity)
             {
                 ref IsBody body = ref r.component1;
-                if (body.type == IsBody.Type.Dynamic)
+                if (body.type == BodyType.Dynamic)
                 {
                     operation.SelectEntity(r.entity);
                     changed = true;
@@ -191,7 +191,7 @@ namespace Physics.Systems
             foreach (var r in positionMissingQuery)
             {
                 ref IsBody body = ref r.component1;
-                if (body.type != IsBody.Type.Static)
+                if (body.type != BodyType.Static)
                 {
                     operation.SelectEntity(r.entity);
                     changed = true;
@@ -211,7 +211,7 @@ namespace Physics.Systems
             foreach (var r in rotationMissingQuery)
             {
                 ref IsBody body = ref r.component1;
-                if (body.type != IsBody.Type.Static)
+                if (body.type != BodyType.Static)
                 {
                     operation.SelectEntity(r.entity);
                     changed = true;
@@ -259,7 +259,7 @@ namespace Physics.Systems
                 if (!world.ContainsEntity(bodyEntity))
                 {
                     CompiledBody body = bodies[bodyEntity];
-                    bool isStatic = body.type == IsBody.Type.Static;
+                    bool isStatic = body.type == BodyType.Static;
                     handleToBody.Remove((body.handle, isStatic));
                     if (isStatic)
                     {
@@ -304,18 +304,18 @@ namespace Physics.Systems
                 }
 
                 //make sure a reusable shape exists for this combination of (type, offset, mass, scale)
-                IsBody.Type type = body.type;
+                BodyType type = body.type;
                 bool newShape = false;
                 float mass;
-                if (type == IsBody.Type.Static)
+                if (type == BodyType.Static)
                 {
                     mass = float.MaxValue;
                 }
-                else if (type == IsBody.Type.Dynamic)
+                else if (type == BodyType.Dynamic)
                 {
                     mass = world.GetComponent<Mass>(entity).value;
                 }
-                else if (type == IsBody.Type.Kinematic)
+                else if (type == BodyType.Kinematic)
                 {
                     mass = float.MaxValue;
                 }
@@ -338,7 +338,7 @@ namespace Physics.Systems
                 usedShapes.Add(shapeHash);
 
                 //make sure a physics body exists for this combination of (shape, type)
-                bool isStatic = type == IsBody.Type.Static;
+                bool isStatic = type == BodyType.Static;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
                 Vector3 desiredWorldPosition = worldPosition + worldOffset;
                 Quaternion desiredWorldRotation = worldRotation.value;
@@ -362,7 +362,7 @@ namespace Physics.Systems
 
                     compiledBody.Dispose();
                     compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
-                    isStatic = compiledBody.type == IsBody.Type.Static;
+                    isStatic = compiledBody.type == BodyType.Static;
                     bodies[entity] = compiledBody;
                     handleToBody.Add((compiledBody.handle, isStatic), entity);
                 }
@@ -430,7 +430,7 @@ namespace Physics.Systems
             {
                 CompiledBody body = bodies[bodyEntity];
                 Shape shape = world.GetComponent<IsBody>(bodyEntity).shape;
-                bool isStatic = body.type == IsBody.Type.Static;
+                bool isStatic = body.type == BodyType.Static;
                 LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity);
                 Vector3 localOffset = shape.offset;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
@@ -533,27 +533,27 @@ namespace Physics.Systems
         private readonly CompiledBody CreateBody(IsBody bodyComponent, CompiledShape shape, Vector3 worldPosition, Quaternion worldRotation)
         {
             BepuPhysics.Simulation simulation = bepuSimulation;
-            IsBody.Type type = bodyComponent.type;
+            BodyType type = bodyComponent.type;
             RigidPose pose = new(worldPosition, worldRotation);
             ContinuousDetection continuity = ContinuousDetection.Discrete;
             BodyActivityDescription activity = new(0.01f);
             uint version = bodyComponent.version;
             int handle;
-            if (type == IsBody.Type.Dynamic)
+            if (type == BodyType.Dynamic)
             {
                 CollidableDescription collidable = new(shape.shapeIndex, 10f, continuity);
                 BodyDescription description = BodyDescription.CreateDynamic(pose, default, shape.bodyInertia, collidable, activity);
                 BodyHandle bodyHandle = simulation.Bodies.Add(description);
                 handle = bodyHandle.Value;
             }
-            else if (type == IsBody.Type.Kinematic)
+            else if (type == BodyType.Kinematic)
             {
                 CollidableDescription collidable = new(shape.shapeIndex, 10f, continuity);
                 BodyDescription description = BodyDescription.CreateKinematic(pose, default, collidable, activity);
                 BodyHandle bodyHandle = simulation.Bodies.Add(description);
                 handle = bodyHandle.Value;
             }
-            else if (type == IsBody.Type.Static)
+            else if (type == BodyType.Static)
             {
                 StaticDescription description = new(pose, shape.shapeIndex, continuity);
                 StaticHandle staticHandle = simulation.Statics.Add(description);
@@ -582,7 +582,7 @@ namespace Physics.Systems
             return totalGravity;
         }
 
-        private static uint GetHash(Shape shape, IsBody.Type type, Vector3 scale, float mass)
+        private static uint GetHash(Shape shape, BodyType type, Vector3 scale, float mass)
         {
             unchecked
             {

@@ -8,12 +8,12 @@ namespace Physics.Systems
     {
         public readonly uint version;
         public readonly int handle;
-        public readonly IsBody.Type type;
+        public readonly BodyType type;
 
         public readonly BodyHandle DynamicBody => new(handle);
         public readonly StaticHandle StaticBody => new(handle);
 
-        public CompiledBody(uint version, int handle, IsBody.Type type)
+        public CompiledBody(uint version, int handle, BodyType type)
         {
             this.version = version;
             this.handle = handle;
