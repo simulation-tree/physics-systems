@@ -55,6 +55,34 @@ jobs:
           repository: game-simulations/transform-systems
           token: ${{ secrets.PAT }}
           path: transform-systems
+      
+      - name: Checkout `transforms`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/transforms
+          token: ${{ secrets.PAT }}
+          path: transforms
+      
+      - name: Checkout `types`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/types
+          token: ${{ secrets.PAT }}
+          path: types
+      
+      - name: Checkout `worlds`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/worlds
+          token: ${{ secrets.PAT }}
+          path: worlds
+      
+      - name: Checkout `collections`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/collections
+          token: ${{ secrets.PAT }}
+          path: collections
             
       - name: Setup
         uses: actions/setup-dotnet@v4
