@@ -570,12 +570,12 @@ namespace Physics.Systems
         private readonly Vector3 GetGlobalGravity()
         {
             Vector3 totalGravity = default;
-            ComponentQuery<IsGravitySource, IsDirectionalGravity, LocalToWorld> directionalGravityQuery = new(world);
+            ComponentQuery<IsGravitySource, LocalToWorld> directionalGravityQuery = new(world);
+            directionalGravityQuery.RequireTag<IsDirectionalGravity>();
             foreach (var r in directionalGravityQuery)
             {
                 ref IsGravitySource gravitySource = ref r.component1;
-                ref IsDirectionalGravity tag = ref r.component2;
-                ref LocalToWorld ltw = ref r.component3;
+                ref LocalToWorld ltw = ref r.component2;
                 totalGravity += ltw.Forward * gravitySource.force;
             }
 
