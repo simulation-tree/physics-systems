@@ -160,7 +160,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<LinearVelocity>(schema);
+                operation.AddComponent<LinearVelocity>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -180,7 +180,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<AngularVelocity>(schema);
+                operation.AddComponent<AngularVelocity>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -200,7 +200,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<Position>(schema);
+                operation.AddComponent<Position>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -220,13 +220,13 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<Rotation>(schema);
+                operation.AddComponent<Rotation>();
                 operation.ClearSelection();
             }
 
             if (operation.Count > 0)
             {
-                world.Perform(operation);
+                operation.Perform(world);
                 operation.Clear();
             }
         }
