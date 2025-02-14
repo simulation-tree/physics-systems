@@ -1,4 +1,5 @@
 ﻿using Physics.Systems;
+using Physics.Systems.Tests;
 using Simulation.Tests;
 using Transforms;
 using Transforms.Systems;
@@ -28,6 +29,7 @@ namespace Physics.Tests
             Schema schema = base.CreateSchema();
             schema.Load<PhysicsSchemaBank>();
             schema.Load<TransformsSchemaBank>();
+            schema.Load<PhysicsSystemsTestsSchemaBank>();
             return schema;
         }
     }
