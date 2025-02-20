@@ -393,8 +393,8 @@ namespace Physics.Systems
                         bodyReference.Awake = true;
                     }
 
-                    Vector3 linearVelocity = world.GetComponent(entity, new LinearVelocity()).value; //optional
-                    Vector3 angularVelocity = world.GetComponent(entity, new AngularVelocity()).value; //optional
+                    Vector3 linearVelocity = world.GetComponentOrDefault(entity, new LinearVelocity()).value; //optional
+                    Vector3 angularVelocity = world.GetComponentOrDefault(entity, new AngularVelocity()).value; //optional
                     if (state.linearVelocity != linearVelocity || state.angularVelocity != angularVelocity)
                     {
                         ref BodyVelocity velocity = ref bodyReference.Velocity;
@@ -460,7 +460,7 @@ namespace Physics.Systems
                     Matrix4x4 wtl = Matrix4x4.Identity;
                     if (bodyParent != default)
                     {
-                        Matrix4x4.Invert(world.GetComponent(bodyParent, LocalToWorld.Default).value, out wtl);
+                        Matrix4x4.Invert(world.GetComponentOrDefault(bodyParent, LocalToWorld.Default).value, out wtl);
                     }
 
                     //copy into individual local components
