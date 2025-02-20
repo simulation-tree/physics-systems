@@ -1,7 +1,6 @@
 ﻿using Collections;
 using Physics.Events;
 using Simulation;
-using Simulation.Functions;
 using System;
 using System.Runtime.InteropServices;
 using Unmanaged;
@@ -64,7 +63,7 @@ namespace Physics.Systems
         }
 
         [UnmanagedCallersOnly]
-        private static HandleMessage.Boolean HandleRaycast(SystemContainer container, World world, Allocation message)
+        private static StatusCode HandleRaycast(SystemContainer container, World world, Allocation message)
         {
             ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
             RaycastRequest raycast = message.Read<RaycastRequest>();
@@ -76,7 +75,7 @@ namespace Physics.Systems
             }
 
             physicsSystem.PerformRaycastRequest(raycast);
-            return true;
+            return StatusCode.Continue;
         }
     }
 }
