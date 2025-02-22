@@ -1,5 +1,4 @@
 ﻿using BepuPhysics;
-using Physics.Components;
 using System;
 
 namespace Physics.Systems

@@ -4,6 +4,8 @@ using BepuPhysics.Constraints;
 using Collections;
 using Physics.Components;
 using Physics.Events;
+using Shapes;
+using Shapes.Types;
 using System;
 using System.Numerics;
 using Transforms.Components;
@@ -78,6 +80,9 @@ namespace Physics.Systems
 
         public readonly void Update(TimeSpan delta)
         {
+            ComponentType bodyType = world.Schema.GetComponent<IsBody>();
+            ComponentType ltwType = world.Schema.GetComponent<LocalToWorld>();
+
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
             ApplyPointGravity((float)delta.TotalSeconds);
@@ -88,7 +93,7 @@ namespace Physics.Systems
                 bepuSimulation.Update(delta);
             }
 
-            CopyPhysicsObjectStateToEntities();
+            CopyPhysicsObjectStateToEntities(bodyType, ltwType);
         }
 
         private readonly void ApplyPointGravity(float delta)
@@ -142,8 +147,6 @@ namespace Physics.Systems
 
         private readonly void AddMissingComponents()
         {
-            Schema schema = world.Schema;
-
             //make sure linear velocity exists
             ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world);
             bodiesWithoutVelocityQuery.ExcludeComponent<LinearVelocity>();
@@ -298,7 +301,7 @@ namespace Physics.Systems
                 ref WorldRotation worldRotation = ref r.component3;
                 uint entity = r.entity;
                 Shape shape = body.shape;
-                if (shape.type == default)
+                if (shape.TypeIndex == default)
                 {
                     throw new Exception($"Physics body `{entity}` references invalid shape");
                 }
@@ -326,11 +329,11 @@ namespace Physics.Systems
 
                 (Vector3 worldPosition, Quaternion ltwRotation, Vector3 scale) = ltw.Decomposed;
                 Vector3 roundedScale = new(MathF.Round(scale.X, 3), MathF.Round(scale.Y, 3), MathF.Round(scale.Z, 3));
-                Vector3 localOffset = shape.offset;
-                uint shapeHash = GetHash(shape, type, roundedScale, mass);
+                Vector3 localOffset = body.offset;
+                uint shapeHash = GetHash(shape, localOffset, type, roundedScale, mass);
                 if (!shapes.TryGetValue(shapeHash, out CompiledShape compiledShape))
                 {
-                    compiledShape = CreateShape(shape, scale, mass);
+                    compiledShape = CreateShape(shape, localOffset, scale, mass);
                     shapes.Add(shapeHash, compiledShape);
                     newShape = true;
                 }
@@ -417,22 +420,23 @@ namespace Physics.Systems
 
             foreach (uint shapeHash in toRemove)
             {
-                CompiledShape shape = shapes.Remove(shapeHash);
+                shapes.Remove(shapeHash, out CompiledShape shape);
                 simulation.Shapes.Remove(shape.shapeIndex);
                 shape.Dispose();
             }
         }
 
-        private readonly void CopyPhysicsObjectStateToEntities()
+        private readonly void CopyPhysicsObjectStateToEntities(ComponentType bodyType, ComponentType ltwType)
         {
             BepuPhysics.Simulation simulation = bepuSimulation;
             foreach (uint bodyEntity in bodies.Keys)
             {
                 CompiledBody body = bodies[bodyEntity];
-                Shape shape = world.GetComponent<IsBody>(bodyEntity).shape;
+                IsBody component = world.GetComponent<IsBody>(bodyEntity, bodyType);
+                Shape shape = component.shape;
                 bool isStatic = body.type == BodyType.Static;
-                LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity);
-                Vector3 localOffset = shape.offset;
+                LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity, ltwType);
+                Vector3 localOffset = component.offset;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltw.Rotation);
                 if (isStatic)
                 {
@@ -504,10 +508,9 @@ namespace Physics.Systems
             }
         }
 
-        private readonly CompiledShape CreateShape(Shape shape, Vector3 scale, float mass)
+        private readonly CompiledShape CreateShape(Shape shape, Vector3 offset, Vector3 scale, float mass)
         {
             BepuPhysics.Simulation simulation = bepuSimulation;
-            Vector3 offset = shape.offset;
             if (shape.Is(out CubeShape cube))
             {
                 Vector3 extents = cube.extents * scale;
@@ -582,12 +585,13 @@ namespace Physics.Systems
             return totalGravity;
         }
 
-        private static uint GetHash(Shape shape, BodyType type, Vector3 scale, float mass)
+        private static uint GetHash(Shape shape, Vector3 offset, BodyType type, Vector3 scale, float mass)
         {
             unchecked
             {
                 int hash = 17;
                 hash = hash * 23 + shape.GetHashCode();
+                hash = hash * 23 + offset.GetHashCode();
                 hash = hash * 23 + type.GetHashCode();
                 hash = hash * 23 + scale.GetHashCode();
                 hash = hash * 23 + mass.GetHashCode();

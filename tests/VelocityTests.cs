@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Shapes.Types;
+using System;
 using System.Numerics;
 using Transforms;
 
@@ -132,7 +133,7 @@ namespace Physics.Tests
             Assert.That(min, Is.EqualTo(new Vector3(-0.5f, -0.5f, -0.5f)));
             Assert.That(max, Is.EqualTo(new Vector3(0.5f, 0.5f, 0.5f)));
 
-            cubeBody.Shape.offset = new(1, 1, 1);
+            cubeBody.Offset = new(1, 1, 1);
             simulator.Update(TimeSpan.FromSeconds(0.1f));
 
             (min, max) = cubeBody.Bounds;
