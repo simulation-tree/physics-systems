@@ -77,6 +77,13 @@ jobs:
           token: ${{ secrets.PAT }}
           path: types
       
+      - name: Checkout `shapes`
+        uses: actions/checkout@v4.1.2
+        with:
+          repository: game-simulations/shapes
+          token: ${{ secrets.PAT }}
+          path: shapes
+      
       - name: Checkout `collections`
         uses: actions/checkout@v4.1.2
         with:
