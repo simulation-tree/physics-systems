@@ -2,6 +2,7 @@
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
 using Collections;
+using Collections.Generic;
 using Physics.Components;
 using Physics.Events;
 using Shapes;
@@ -34,7 +35,7 @@ namespace Physics.Systems
         {
             this.world = world;
             bufferPool = new();
-            gravity = Allocation.Create(new Vector3(0f));
+            gravity = Allocation.CreateFromValue(new Vector3(0f));
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
             PoseIntegratorCallbacks poseIntegratorCallbacks = new(gravity, 0f, 0f);
             SolveDescription solveDescription = new(8, 1);

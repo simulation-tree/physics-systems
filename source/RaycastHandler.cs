@@ -1,7 +1,7 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Trees;
-using Collections;
+using Collections.Generic;
 using System.Numerics;
 
 namespace Physics.Systems
