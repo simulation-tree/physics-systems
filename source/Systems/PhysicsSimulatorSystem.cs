@@ -81,8 +81,8 @@ namespace Physics.Systems
 
         public readonly void Update(TimeSpan delta)
         {
-            ComponentType bodyType = world.Schema.GetComponent<IsBody>();
-            ComponentType ltwType = world.Schema.GetComponent<LocalToWorld>();
+            ComponentType bodyType = world.Schema.GetComponentType<IsBody>();
+            ComponentType ltwType = world.Schema.GetComponentType<LocalToWorld>();
 
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
@@ -101,9 +101,9 @@ namespace Physics.Systems
         {
             FindPointGravitySources();
 
-            ComponentType bodyType = world.Schema.GetComponent<IsBody>();
-            ComponentType ltwType = world.Schema.GetComponent<LocalToWorld>();
-            ComponentType linearVelocityType = world.Schema.GetComponent<LinearVelocity>();
+            ComponentType bodyType = world.Schema.GetComponentType<IsBody>();
+            ComponentType ltwType = world.Schema.GetComponentType<LocalToWorld>();
+            ComponentType linearVelocityType = world.Schema.GetComponentType<LinearVelocity>();
             BitMask bodyComponents = new(bodyType, ltwType, linearVelocityType);
             foreach (Chunk chunk in world.Chunks)
             {
