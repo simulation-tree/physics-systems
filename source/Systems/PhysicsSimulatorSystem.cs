@@ -101,33 +101,46 @@ namespace Physics.Systems
         {
             FindPointGravitySources();
 
-            ComponentQuery<IsBody, LocalToWorld, LinearVelocity> bodyQuery = new(world);
-            foreach (var r in bodyQuery)
+            ComponentType bodyType = world.Schema.GetComponent<IsBody>();
+            ComponentType ltwType = world.Schema.GetComponent<LocalToWorld>();
+            ComponentType linearVelocityType = world.Schema.GetComponent<LinearVelocity>();
+            BitMask bodyComponents = new(bodyType, ltwType, linearVelocityType);
+            foreach (Chunk chunk in world.Chunks)
             {
-                ref IsBody body = ref r.component1;
-                ref LocalToWorld ltw = ref r.component2;
-                ref LinearVelocity linearVelocity = ref r.component3;
-                if (body.type == BodyType.Dynamic)
+                if (chunk.Definition.ComponentTypes.ContainsAll(bodyComponents))
                 {
-                    Vector3 accumulatedGravity = default;
-                    Vector3 worldPosition = ltw.Position;
-                    foreach ((Vector3 sourcePosition, float force, float radius) in pointGravitySources)
+                    uint entityCount = chunk.Count;
+                    USpan<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
+                    USpan<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
+                    USpan<LinearVelocity> linearVelocities = chunk.GetComponents<LinearVelocity>(linearVelocityType);
+                    for (uint i = 0; i < entityCount; i++)
                     {
-                        Vector3 offset = worldPosition - sourcePosition;
-                        float distanceSquared = offset.LengthSquared();
-                        if (distanceSquared < radius * radius)
+                        ref IsBody body = ref bodies[i];
+                        ref LocalToWorld ltw = ref ltws[i];
+                        ref LinearVelocity linearVelocity = ref linearVelocities[i];
+                        if (body.type == BodyType.Dynamic)
                         {
-                            float distance = MathF.Sqrt(distanceSquared);
-                            float attenuation = 1f - MathF.Min(distance / radius, 1f);
-                            Vector3 direction = Vector3.Normalize(offset);
-                            accumulatedGravity += direction * force * attenuation;
-                        }
-                    }
+                            Vector3 accumulatedGravity = default;
+                            Vector3 worldPosition = ltw.Position;
+                            foreach ((Vector3 sourcePosition, float force, float radius) in pointGravitySources)
+                            {
+                                Vector3 offset = worldPosition - sourcePosition;
+                                float distanceSquared = offset.LengthSquared();
+                                if (distanceSquared < radius * radius)
+                                {
+                                    float distance = MathF.Sqrt(distanceSquared);
+                                    float attenuation = 1f - MathF.Min(distance / radius, 1f);
+                                    Vector3 direction = Vector3.Normalize(offset);
+                                    accumulatedGravity += direction * force * attenuation;
+                                }
+                            }
 
-                    if (accumulatedGravity != default)
-                    {
-                        accumulatedGravity *= -1;
-                        linearVelocity.value += accumulatedGravity * delta;
+                            if (accumulatedGravity != default)
+                            {
+                                accumulatedGravity *= -1;
+                                linearVelocity.value += accumulatedGravity * delta;
+                            }
+                        }
                     }
                 }
             }
