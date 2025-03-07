@@ -63,7 +63,7 @@ namespace Physics.Systems
         }
 
         [UnmanagedCallersOnly]
-        private static StatusCode HandleRaycast(SystemContainer container, World world, Allocation message)
+        private static StatusCode HandleRaycast(SystemContainer container, World world, MemoryAddress message)
         {
             ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
             RaycastRequest raycast = message.Read<RaycastRequest>();

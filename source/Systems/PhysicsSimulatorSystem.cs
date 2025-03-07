@@ -27,7 +27,7 @@ namespace Physics.Systems
         private readonly List<(Vector3, float, float)> pointGravitySources;
         private readonly BepuSimulation bepuSimulation;
         private readonly BepuBufferPool bufferPool;
-        private readonly Allocation gravity;
+        private readonly MemoryAddress gravity;
         private readonly World world;
         private readonly Operation operation;
 
@@ -35,7 +35,7 @@ namespace Physics.Systems
         {
             this.world = world;
             bufferPool = new();
-            gravity = Allocation.CreateFromValue(new Vector3(0f));
+            gravity = MemoryAddress.Allocate(new Vector3(0f));
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
             PoseIntegratorCallbacks poseIntegratorCallbacks = new(gravity, 0f, 0f);
             SolveDescription solveDescription = new(8, 1);
@@ -299,7 +299,7 @@ namespace Physics.Systems
             }
 
             //create shapes and bodies for entities that dont have them yet
-            uint capacity = Allocations.GetNextPowerOf2(world.MaxEntityValue + 1);
+            uint capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
             if (physicsObjectState.Length < capacity)
             {
                 physicsObjectState.Length = capacity;
