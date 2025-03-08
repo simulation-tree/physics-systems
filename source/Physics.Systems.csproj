@@ -12,8 +12,8 @@
         <WarningLevel>8</WarningLevel>
         <Title>Physics Systems</Title>
         <Authors>popcron</Authors>
-        <Company>game-simulations</Company>
-        <RepositoryUrl>https://github.com/game-simulations/physics-systems</RepositoryUrl>
+        <Company>simulation-tree</Company>
+        <RepositoryUrl>https://github.com/simulation-tree/physics-systems</RepositoryUrl>
         <PackageId/>
     </PropertyGroup>
 
