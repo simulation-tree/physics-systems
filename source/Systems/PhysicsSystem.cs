@@ -56,7 +56,7 @@ namespace Physics.Systems
             }
         }
 
-        readonly unsafe uint ISystem.GetMessageHandlers(USpan<MessageHandler> buffer)
+        readonly unsafe int ISystem.GetMessageHandlers(Span<MessageHandler> buffer)
         {
             buffer[0] = MessageHandler.Create<RaycastRequest>(new(&HandleRaycast));
             return 1;

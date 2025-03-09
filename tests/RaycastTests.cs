@@ -1,10 +1,10 @@
 ﻿using Physics.Events;
+using Physics.Functions;
 using Shapes.Types;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Transforms;
-using Unmanaged;
 using Worlds;
 
 namespace Physics.Tests
@@ -51,13 +51,16 @@ namespace Physics.Tests
             }
 
             [UnmanagedCallersOnly]
-            static void HitCallback(World world, RaycastRequest raycast, RaycastHit* hitsPointer, uint hitsLength)
+            static void HitCallback(RaycastHitCallback.Input input)
             {
+                World world = input.world;
+                RaycastRequest raycast = input.request;
+
                 uint proofEntity = world.CreateEntity();
                 world.AddComponent(proofEntity, true);
                 world.AddComponent(proofEntity, raycast.userData);
 
-                USpan<RaycastHit> hits = new(hitsPointer, hitsLength);
+                ReadOnlySpan<RaycastHit> hits = input.Hits;
                 if (raycast.userData == 0)
                 {
                     Assert.That(hits.Length, Is.EqualTo(1));

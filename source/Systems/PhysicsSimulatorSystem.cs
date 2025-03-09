@@ -35,7 +35,7 @@ namespace Physics.Systems
         {
             this.world = world;
             bufferPool = new();
-            gravity = MemoryAddress.Allocate(new Vector3(0f));
+            gravity = MemoryAddress.AllocateValue(new Vector3(0f));
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
             PoseIntegratorCallbacks poseIntegratorCallbacks = new(gravity, 0f, 0f);
             SolveDescription solveDescription = new(8, 1);
@@ -109,11 +109,11 @@ namespace Physics.Systems
             {
                 if (chunk.Definition.ComponentTypes.ContainsAll(bodyComponents))
                 {
-                    uint entityCount = chunk.Count;
-                    USpan<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
-                    USpan<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
-                    USpan<LinearVelocity> linearVelocities = chunk.GetComponents<LinearVelocity>(linearVelocityType);
-                    for (uint i = 0; i < entityCount; i++)
+                    int entityCount = chunk.Count;
+                    Span<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
+                    Span<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
+                    Span<LinearVelocity> linearVelocities = chunk.GetComponents<LinearVelocity>(linearVelocityType);
+                    for (int i = 0; i < entityCount; i++)
                     {
                         ref IsBody body = ref bodies[i];
                         ref LocalToWorld ltw = ref ltws[i];
@@ -287,7 +287,7 @@ namespace Physics.Systems
                         simulation.Bodies.Remove(body.DynamicBody);
                     }
 
-                    physicsObjectState[bodyEntity] = default;
+                    physicsObjectState[(int)bodyEntity] = default;
                     body.Dispose();
                     toRemove.Add(bodyEntity);
                 }
@@ -299,7 +299,7 @@ namespace Physics.Systems
             }
 
             //create shapes and bodies for entities that dont have them yet
-            uint capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
+            int capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
             if (physicsObjectState.Length < capacity)
             {
                 physicsObjectState.Length = capacity;
@@ -385,7 +385,7 @@ namespace Physics.Systems
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
-                ref BodyState state = ref physicsObjectState[entity];
+                ref BodyState state = ref physicsObjectState[(int)entity];
                 if (isStatic)
                 {
                     StaticReference staticReference = bepuSimulation.GetStaticBody(compiledBody.StaticBody);
@@ -458,7 +458,7 @@ namespace Physics.Systems
                     StaticDescription description = staticReference.GetDescription();
                     Vector3 finalWorldPosition = description.Pose.Position - worldOffset;
                     Quaternion finalWorldRotation = description.Pose.Orientation;
-                    physicsObjectState[bodyEntity] = new(finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
+                    physicsObjectState[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))
@@ -505,7 +505,7 @@ namespace Physics.Systems
 
                     ref AngularVelocity angularVelocity = ref world.GetComponent<AngularVelocity>(bodyEntity);
                     angularVelocity.value = velocity.Angular;
-                    physicsObjectState[bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
+                    physicsObjectState[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))
