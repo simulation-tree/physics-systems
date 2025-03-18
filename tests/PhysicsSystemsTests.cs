@@ -19,9 +19,9 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.AddSystem<TransformSystem>();
-            simulator.AddSystem<PhysicsSystem>();
-            simulator.AddSystem<TransformSystem>();
+            simulator.AddSystem(new TransformSystem());
+            simulator.AddSystem(new PhysicsSystem());
+            simulator.AddSystem(new TransformSystem());
         }
 
         protected override Schema CreateSchema()

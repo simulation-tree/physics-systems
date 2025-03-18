@@ -81,8 +81,8 @@ namespace Physics.Systems
 
         public readonly void Update(TimeSpan delta)
         {
-            ComponentType bodyType = world.Schema.GetComponentType<IsBody>();
-            ComponentType ltwType = world.Schema.GetComponentType<LocalToWorld>();
+            int bodyType = world.Schema.GetComponentType<IsBody>();
+            int ltwType = world.Schema.GetComponentType<LocalToWorld>();
 
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
@@ -101,18 +101,18 @@ namespace Physics.Systems
         {
             FindPointGravitySources();
 
-            ComponentType bodyType = world.Schema.GetComponentType<IsBody>();
-            ComponentType ltwType = world.Schema.GetComponentType<LocalToWorld>();
-            ComponentType linearVelocityType = world.Schema.GetComponentType<LinearVelocity>();
+            int bodyType = world.Schema.GetComponentType<IsBody>();
+            int ltwType = world.Schema.GetComponentType<LocalToWorld>();
+            int linearVelocityType = world.Schema.GetComponentType<LinearVelocity>();
             BitMask bodyComponents = new(bodyType, ltwType, linearVelocityType);
             foreach (Chunk chunk in world.Chunks)
             {
-                if (chunk.Definition.ComponentTypes.ContainsAll(bodyComponents))
+                if (chunk.Definition.componentTypes.ContainsAll(bodyComponents))
                 {
                     int entityCount = chunk.Count;
-                    Span<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
-                    Span<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
-                    Span<LinearVelocity> linearVelocities = chunk.GetComponents<LinearVelocity>(linearVelocityType);
+                    ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
+                    ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
+                    ComponentEnumerator<LinearVelocity> linearVelocities = chunk.GetComponents<LinearVelocity>(linearVelocityType);
                     for (int i = 0; i < entityCount; i++)
                     {
                         ref IsBody body = ref bodies[i];
@@ -440,7 +440,7 @@ namespace Physics.Systems
             }
         }
 
-        private readonly void CopyPhysicsObjectStateToEntities(ComponentType bodyType, ComponentType ltwType)
+        private readonly void CopyPhysicsObjectStateToEntities(int bodyType, int ltwType)
         {
             BepuPhysics.Simulation simulation = bepuSimulation;
             foreach (uint bodyEntity in bodies.Keys)

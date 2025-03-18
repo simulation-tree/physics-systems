@@ -1,9 +1,9 @@
 ﻿using Collections.Generic;
 using Physics.Events;
 using Simulation;
+using Simulation.Functions;
 using System;
 using System.Runtime.InteropServices;
-using Unmanaged;
 using Worlds;
 
 namespace Physics.Systems
@@ -12,26 +12,30 @@ namespace Physics.Systems
     {
         private readonly Dictionary<World, PhysicsSimulatorSystem> systems;
 
-        private PhysicsSystem(Dictionary<World, PhysicsSimulatorSystem> systems)
+        public PhysicsSystem()
         {
-            this.systems = systems;
+            systems = new(4);
         }
 
-        void ISystem.Start(in SystemContainer systemContainer, in World world)
+        public readonly void Dispose()
         {
-            if (systemContainer.World == world)
+            foreach (PhysicsSimulatorSystem system in systems.Values)
             {
-                Dictionary<World, PhysicsSimulatorSystem> systems = new();
-                systemContainer.Write(new PhysicsSystem(systems));
+                system.Dispose();
             }
 
+            systems.Dispose();
+        }
+
+        void ISystem.Start(in SystemContext context, in World world)
+        {
             if (!systems.ContainsKey(world))
             {
                 systems.Add(world, new PhysicsSimulatorSystem(world));
             }
         }
 
-        void ISystem.Update(in SystemContainer systemContainer, in World world, in TimeSpan delta)
+        void ISystem.Update(in SystemContext context, in World world, in TimeSpan delta)
         {
             ref PhysicsSimulatorSystem physicsSystem = ref systems.TryGetValue(world, out bool contains);
             if (!contains)
@@ -43,30 +47,21 @@ namespace Physics.Systems
             physicsSystem.Update(delta);
         }
 
-        void ISystem.Finish(in SystemContainer systemContainer, in World world)
+        void ISystem.Finish(in SystemContext context, in World world)
         {
-            if (systemContainer.World == world)
-            {
-                foreach (World key in systems.Keys)
-                {
-                    systems[key].Dispose();
-                }
-
-                systems.Dispose();
-            }
         }
 
-        readonly unsafe int ISystem.GetMessageHandlers(Span<MessageHandler> buffer)
+        readonly unsafe void ISystem.CollectMessageHandlers(MessageHandlerCollector collector)
         {
-            buffer[0] = MessageHandler.Create<RaycastRequest>(new(&HandleRaycast));
-            return 1;
+            collector.Add<RaycastRequest>(&HandleRaycast);
         }
 
         [UnmanagedCallersOnly]
-        private static StatusCode HandleRaycast(SystemContainer container, World world, MemoryAddress message)
+        private static StatusCode HandleRaycast(HandleMessage.Input input)
         {
-            ref PhysicsSystem system = ref container.Read<PhysicsSystem>();
-            RaycastRequest raycast = message.Read<RaycastRequest>();
+            World world = input.world;
+            ref PhysicsSystem system = ref input.ReadSystem<PhysicsSystem>();
+            RaycastRequest raycast = input.ReadMessage<RaycastRequest>();
             ref PhysicsSimulatorSystem physicsSystem = ref system.systems.TryGetValue(world, out bool contains);
             if (!contains)
             {
