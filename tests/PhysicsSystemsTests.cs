@@ -12,8 +12,8 @@ namespace Physics.Tests
     {
         static PhysicsSystemsTests()
         {
-            TypeRegistry.Load<PhysicsTypeBank>();
-            TypeRegistry.Load<TransformsTypeBank>();
+            MetadataRegistry.Load<PhysicsTypeBank>();
+            MetadataRegistry.Load<TransformsTypeBank>();
         }
 
         protected override void SetUp()
