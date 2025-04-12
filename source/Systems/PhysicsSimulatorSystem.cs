@@ -1,7 +1,6 @@
 ﻿using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
-using Collections;
 using Collections.Generic;
 using Physics.Components;
 using Physics.Events;
