@@ -243,7 +243,7 @@ namespace Physics.Systems
             if (operation.Count > 0)
             {
                 operation.Perform(world);
-                operation.Clear();
+                operation.Reset();
             }
         }
 
