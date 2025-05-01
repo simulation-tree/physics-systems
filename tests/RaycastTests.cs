@@ -15,16 +15,19 @@ namespace Physics.Tests
         [Test]
         public unsafe void RaycastAgainstStaticFloor()
         {
-            Body floorBody = new(world, new CubeShape(0.5f), BodyType.Static);
-            Transform floorTransform = floorBody;
-            floorTransform.LocalScale = new(100, 1, 1);
-            floorTransform.LocalPosition = new(0, -2, 0);
+            Body floorBody = new(world, new CubeShape(0.5f, 0.5f, 0.5f), BodyType.Static);
+            floorBody.As<Transform>().LocalPosition = new(0f, -5f, 0f);
+            floorBody.As<Transform>().LocalScale = new(100f, 1f, 1f);
 
             simulator.Update(TimeSpan.FromSeconds(0.01f));
 
+            Vector3 origin = new(0.00013398135f, -4.000277f, 0.00049429137f);
+            Vector3 direction = -Vector3.UnitY;
+            float distance = 0.5f;
             using MemoryAddress temp = MemoryAddress.AllocateValue<(uint, bool)>(default);
             ref (uint entity, bool hit) result = ref temp.Read<(uint, bool)>();
-            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, -Vector3.UnitY, new(&HitCallback), 1.501f, (ulong)temp.Address));
+            Assert.That(result.hit, Is.False);
+            simulator.TryHandleMessage(new RaycastRequest(world, origin, direction, new(&HitCallback), distance, (ulong)temp.Address));
             Assert.That(result.hit, Is.True);
 
             [UnmanagedCallersOnly]

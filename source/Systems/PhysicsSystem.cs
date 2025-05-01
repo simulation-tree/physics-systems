@@ -59,14 +59,13 @@ namespace Physics.Systems
         [UnmanagedCallersOnly]
         private static StatusCode HandleRaycast(HandleMessage.Input input)
         {
-            World world = input.world;
             ref PhysicsSystem system = ref input.ReadSystem<PhysicsSystem>();
             RaycastRequest raycast = input.ReadMessage<RaycastRequest>();
-            ref PhysicsSimulatorSystem physicsSystem = ref system.systems.TryGetValue(world, out bool contains);
+            ref PhysicsSimulatorSystem physicsSystem = ref system.systems.TryGetValue(raycast.world, out bool contains);
             if (!contains)
             {
-                physicsSystem = new(world);
-                system.systems.Add(world, physicsSystem);
+                physicsSystem = new(raycast.world);
+                system.systems.Add(raycast.world, physicsSystem);
             }
 
             physicsSystem.PerformRaycastRequest(raycast);
