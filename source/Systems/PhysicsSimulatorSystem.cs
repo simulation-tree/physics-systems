@@ -176,7 +176,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<LinearVelocity>();
+                operation.AddComponentType<LinearVelocity>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -196,7 +196,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<AngularVelocity>();
+                operation.AddComponentType<AngularVelocity>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -216,7 +216,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<Position>();
+                operation.AddComponentType<Position>();
                 operation.ClearSelection();
                 changed = false;
             }
@@ -236,7 +236,7 @@ namespace Physics.Systems
 
             if (changed)
             {
-                operation.AddComponent<Rotation>();
+                operation.AddComponentType<Rotation>();
                 operation.ClearSelection();
             }
 
