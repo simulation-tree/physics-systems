@@ -19,7 +19,7 @@ namespace Physics.Tests
             floorBody.As<Transform>().LocalPosition = new(0f, -5f, 0f);
             floorBody.As<Transform>().LocalScale = new(100f, 1f, 1f);
 
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
             Vector3 origin = new(0.00013398135f, -4.000277f, 0.00049429137f);
             Vector3 direction = -Vector3.UnitY;
@@ -27,7 +27,7 @@ namespace Physics.Tests
             using MemoryAddress temp = MemoryAddress.AllocateValue<(uint, bool)>(default);
             ref (uint entity, bool hit) result = ref temp.Read<(uint, bool)>();
             Assert.That(result.hit, Is.False);
-            simulator.TryHandleMessage(new RaycastRequest(world, origin, direction, new(&HitCallback), distance, (ulong)temp.Address));
+            Broadcast(new RaycastRequest(world, origin, direction, new(&HitCallback), distance, (ulong)temp.Address));
             Assert.That(result.hit, Is.True);
 
             [UnmanagedCallersOnly]
@@ -57,21 +57,21 @@ namespace Physics.Tests
             Transform cubeTransform = cubeBody;
 
             cubeTransform.LocalPosition = new(0, 0, 5);
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
-            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
+            Broadcast(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 0));
             Assert.That(FindProof(0), Is.True);
 
             cubeTransform.LocalPosition = new(0, 0, 10);
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
-            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
+            Broadcast(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 1));
             Assert.That(FindProof(1), Is.True);
 
             cubeTransform.LocalPosition = new(5, 0, 0);
-            simulator.Update(TimeSpan.FromSeconds(0.01f));
+            Update();
 
-            simulator.TryHandleMessage(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
+            Broadcast(new RaycastRequest(world, Vector3.Zero, Vector3.UnitZ, new(&HitCallback), 100f, 2));
             Assert.That(FindProof(2), Is.True);
 
             bool FindProof(ulong userData)
