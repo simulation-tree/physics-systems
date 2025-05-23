@@ -13,14 +13,14 @@ namespace Physics.Tests
             Body rock = new(world, new CubeShape(0.5f), BodyType.Dynamic);
             rock.LinearVelocity = new(1, 0, 0);
 
-            Update(1);
+            Simulator.Update(1);
 
             Transform rockTransform = rock;
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(1f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(0f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Z, Is.EqualTo(0f).Within(0.1f));
 
-            Update(1);
+            Simulator.Update(1);
 
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(2f).Within(0.1f));
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(0f).Within(0.1f));
@@ -34,12 +34,12 @@ namespace Physics.Tests
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
             Transform rockTransform = rock;
 
-            Update(1);
+            Simulator.Update(1);
 
             Console.WriteLine(rockTransform.WorldPosition);
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-9.806f).Within(0.1f));
 
-            Update(1);
+            Simulator.Update(1);
 
             Assert.That(rockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
 
@@ -52,11 +52,11 @@ namespace Physics.Tests
             //Simulate(world, TimeSpan.FromSeconds(0.2f));
             //Simulate(world, TimeSpan.FromSeconds(0.2f));
             //Simulate(world, TimeSpan.FromSeconds(0.2f));
-            Update(1);
+            Simulator.Update(1);
 
             Assert.That(otherRockTransform.WorldPosition.Y, Is.EqualTo(-9.806f).Within(0.1f));
 
-            Update(1);
+            Simulator.Update(1);
 
             Assert.That(otherRockTransform.WorldPosition.Y, Is.EqualTo(-29.42f).Within(0.2f));
         }
@@ -69,11 +69,11 @@ namespace Physics.Tests
 
             DirectionalGravity directionalGravity = new(world, -Vector3.UnitY);
 
-            Update(0.2);
-            Update(0.2);
-            Update(0.2);
-            Update(0.2);
-            Update(0.2);
+            Simulator.Update(0.2);
+            Simulator.Update(0.2);
+            Simulator.Update(0.2);
+            Simulator.Update(0.2);
+            Simulator.Update(0.2);
 
             Transform rockTransform = rock;
             Assert.That(rockTransform.WorldPosition.X, Is.EqualTo(4f).Within(0.1f));
@@ -92,7 +92,7 @@ namespace Physics.Tests
 
             Body floor = new(world, new CubeShape(5f, 0.5f, 5f), BodyType.Static);
 
-            Update(4);
+            Simulator.Update(4);
 
             Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(1f).Within(0.1f));
 
@@ -113,7 +113,7 @@ namespace Physics.Tests
 
             Body platform = new(world, new CubeShape(5f, 0.5f, 5f), BodyType.Kinematic, new(0, 1, 0)); //platform moves up
 
-            Update(4);
+            Simulator.Update(4);
 
             Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(5f).Within(0.1f));
 
@@ -127,14 +127,14 @@ namespace Physics.Tests
         public void CheckCalculatedBounds()
         {
             Body cubeBody = new(world, new CubeShape(0.5f), BodyType.Dynamic);
-            Update(0.1);
+            Simulator.Update(0.1);
 
             (Vector3 min, Vector3 max) = cubeBody.Bounds;
             Assert.That(min, Is.EqualTo(new Vector3(-0.5f, -0.5f, -0.5f)));
             Assert.That(max, Is.EqualTo(new Vector3(0.5f, 0.5f, 0.5f)));
 
             cubeBody.Offset = new(1, 1, 1);
-            Update(0.1);
+            Simulator.Update(0.1);
 
             (min, max) = cubeBody.Bounds;
             Vector3 size = max - min;
@@ -153,7 +153,7 @@ namespace Physics.Tests
             Quaternion rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI * 0.25f);
             Transform cubeTransform = cubeBody;
             cubeTransform.LocalRotation = rotation;
-            Update(0.1);
+            Simulator.Update(0.1);
 
             (min, max) = cubeBody.Bounds;
             size = max - min;

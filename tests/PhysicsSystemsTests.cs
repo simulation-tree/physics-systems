@@ -19,16 +19,16 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            simulator.Add(new TransformSystem());
-            simulator.Add(new PhysicsSystem(simulator));
-            simulator.Add(new TransformSystem());
+            Simulator.Add(new TransformSystem());
+            Simulator.Add(new PhysicsSystem(Simulator));
+            Simulator.Add(new TransformSystem());
         }
 
         protected override void TearDown()
         {
-            simulator.Remove<TransformSystem>();
-            simulator.Remove<PhysicsSystem>();
-            simulator.Remove<TransformSystem>();
+            Simulator.Remove<TransformSystem>();
+            Simulator.Remove<PhysicsSystem>();
+            Simulator.Remove<TransformSystem>();
             base.TearDown();
         }
 
