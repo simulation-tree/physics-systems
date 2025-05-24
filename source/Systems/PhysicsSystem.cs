@@ -30,6 +30,9 @@ namespace Physics.Systems
         private readonly MemoryAddress gravity;
         private readonly World world;
         private readonly Operation operation;
+        private readonly int bodyType;
+        private readonly int ltwType;
+        private readonly int linearVelocityType;
 
         public PhysicsSystem(Simulator simulator)
         {
@@ -50,6 +53,11 @@ namespace Physics.Systems
             handleToBody = new();
             pointGravitySources = new();
             operation = new();
+
+            Schema schema = simulator.world.Schema;
+            bodyType = schema.GetComponentType<IsBody>();
+            ltwType = schema.GetComponentType<LocalToWorld>();
+            linearVelocityType = schema.GetComponentType<LinearVelocity>();
         }
 
         public void Dispose()
@@ -93,9 +101,6 @@ namespace Physics.Systems
 
         void ISystem.Update(Simulator simulator, double deltaTime)
         {
-            int bodyType = world.Schema.GetComponentType<IsBody>();
-            int ltwType = world.Schema.GetComponentType<LocalToWorld>();
-
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
             ApplyPointGravity(deltaTime);
@@ -112,10 +117,6 @@ namespace Physics.Systems
         private void ApplyPointGravity(double deltaTime)
         {
             FindPointGravitySources();
-
-            int bodyType = world.Schema.GetComponentType<IsBody>();
-            int ltwType = world.Schema.GetComponentType<LocalToWorld>();
-            int linearVelocityType = world.Schema.GetComponentType<LinearVelocity>();
             BitMask bodyComponents = new(bodyType, ltwType, linearVelocityType);
             foreach (Chunk chunk in world.Chunks)
             {

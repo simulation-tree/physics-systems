@@ -19,9 +19,9 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            Simulator.Add(new TransformSystem());
+            Simulator.Add(new TransformSystem(Simulator));
             Simulator.Add(new PhysicsSystem(Simulator));
-            Simulator.Add(new TransformSystem());
+            Simulator.Add(new TransformSystem(Simulator));
         }
 
         protected override void TearDown()
