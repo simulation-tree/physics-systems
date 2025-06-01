@@ -3,7 +3,7 @@ using BepuPhysics.Collidables;
 using BepuPhysics.Constraints;
 using Collections.Generic;
 using Physics.Components;
-using Physics.Events;
+using Physics.Messages;
 using Shapes;
 using Shapes.Types;
 using Simulation;
@@ -15,8 +15,9 @@ using Worlds;
 
 namespace Physics.Systems
 {
-    public partial class PhysicsSystem : ISystem, IDisposable, IListener<RaycastRequest>
+    public partial class PhysicsSystem : SystemBase, IListener<RaycastRequest>, IListener<PhysicsUpdate>
     {
+        private readonly World world;
         private readonly List<RaycastHit> hits;
         private readonly List<uint> toRemove;
         private readonly List<uint> usedShapes;
@@ -28,15 +29,14 @@ namespace Physics.Systems
         private readonly BepuPhysics.Simulation bepuSimulation;
         private readonly BepuBufferPool bufferPool;
         private readonly MemoryAddress gravity;
-        private readonly World world;
         private readonly Operation operation;
         private readonly int bodyType;
         private readonly int ltwType;
         private readonly int linearVelocityType;
 
-        public PhysicsSystem(Simulator simulator)
+        public PhysicsSystem(Simulator simulator, World world) : base(simulator)
         {
-            world = simulator.world;
+            this.world = world;
             bufferPool = new();
             gravity = MemoryAddress.AllocateValue(new Vector3(0f));
             NarrowPhaseCallbacks narrowPhaseCallbacks = new(new SpringSettings(30, 1));
@@ -52,26 +52,26 @@ namespace Physics.Systems
             shapes = new();
             handleToBody = new();
             pointGravitySources = new();
-            operation = new();
+            operation = new(world);
 
-            Schema schema = simulator.world.Schema;
+            Schema schema = world.Schema;
             bodyType = schema.GetComponentType<IsBody>();
             ltwType = schema.GetComponentType<LocalToWorld>();
             linearVelocityType = schema.GetComponentType<LinearVelocity>();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             operation.Dispose();
 
-            foreach (uint bodyEntity in bodies.Keys)
+            foreach (CompiledBody body in bodies.Values)
             {
-                bodies[bodyEntity].Dispose();
+                body.Dispose();
             }
 
-            foreach (uint shapeHash in shapes.Keys)
+            foreach (CompiledShape shape in shapes.Values)
             {
-                shapes[shapeHash].Dispose();
+                shape.Dispose();
             }
 
             pointGravitySources.Dispose();
@@ -93,22 +93,23 @@ namespace Physics.Systems
             bepuSimulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
             if (raycast.callback != default)
             {
-                raycast.callback.Invoke(raycast.world, raycast, hits.AsSpan());
+                //todo: whats the point of raycasting if theres no callback given?
+                raycast.callback.Invoke(world, raycast, hits.AsSpan());
             }
 
             hits.Clear();
         }
 
-        void ISystem.Update(Simulator simulator, double deltaTime)
+        void IListener<PhysicsUpdate>.Receive(ref PhysicsUpdate message)
         {
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
-            ApplyPointGravity(deltaTime);
+            ApplyPointGravity(message.deltaTime);
             CreateAndDestroyPhysicsObjects();
 
-            if (deltaTime > 0)
+            if (message.deltaTime > 0)
             {
-                bepuSimulation.Timestep((float)deltaTime);
+                bepuSimulation.Timestep((float)message.deltaTime);
             }
 
             CopyPhysicsObjectStateToEntities(bodyType, ltwType);
@@ -183,7 +184,7 @@ namespace Physics.Systems
                 ref IsBody body = ref r.component1;
                 if (body.type == BodyType.Dynamic)
                 {
-                    operation.SelectEntity(r.entity);
+                    operation.AppendEntityToSelection(r.entity);
                     changed = true;
                 }
             }
@@ -203,7 +204,7 @@ namespace Physics.Systems
                 ref IsBody body = ref r.component1;
                 if (body.type == BodyType.Dynamic)
                 {
-                    operation.SelectEntity(r.entity);
+                    operation.AppendEntityToSelection(r.entity);
                     changed = true;
                 }
             }
@@ -223,7 +224,7 @@ namespace Physics.Systems
                 ref IsBody body = ref r.component1;
                 if (body.type != BodyType.Static)
                 {
-                    operation.SelectEntity(r.entity);
+                    operation.AppendEntityToSelection(r.entity);
                     changed = true;
                 }
             }
@@ -243,7 +244,7 @@ namespace Physics.Systems
                 ref IsBody body = ref r.component1;
                 if (body.type != BodyType.Static)
                 {
-                    operation.SelectEntity(r.entity);
+                    operation.AppendEntityToSelection(r.entity);
                     changed = true;
                 }
             }
@@ -254,9 +255,8 @@ namespace Physics.Systems
                 operation.ClearSelection();
             }
 
-            if (operation.Count > 0)
+            if (operation.TryPerform())
             {
-                operation.Perform(world);
                 operation.Reset();
             }
         }

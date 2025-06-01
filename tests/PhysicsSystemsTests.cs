@@ -1,7 +1,9 @@
-﻿using Physics.Systems;
+﻿using Physics.Messages;
+using Physics.Systems;
 using Physics.Systems.Tests;
 using Simulation.Tests;
 using Transforms;
+using Transforms.Messages;
 using Transforms.Systems;
 using Types;
 using Worlds;
@@ -10,6 +12,8 @@ namespace Physics.Tests
 {
     public abstract class PhysicsSystemsTests : SimulationTests
     {
+        public World world;
+
         static PhysicsSystemsTests()
         {
             MetadataRegistry.Load<PhysicsMetadataBank>();
@@ -19,26 +23,28 @@ namespace Physics.Tests
         protected override void SetUp()
         {
             base.SetUp();
-            Simulator.Add(new TransformSystem(Simulator));
-            Simulator.Add(new PhysicsSystem(Simulator));
-            Simulator.Add(new TransformSystem(Simulator));
+            Schema schema = new();
+            schema.Load<PhysicsSchemaBank>();
+            schema.Load<TransformsSchemaBank>();
+            schema.Load<PhysicsSystemsTestsSchemaBank>();
+            world = new(schema);
+            Simulator.Add(new TransformSystem(Simulator, world));
+            Simulator.Add(new PhysicsSystem(Simulator, world));
         }
 
         protected override void TearDown()
         {
-            Simulator.Remove<TransformSystem>();
             Simulator.Remove<PhysicsSystem>();
             Simulator.Remove<TransformSystem>();
+            world.Dispose();
             base.TearDown();
         }
 
-        protected override Schema CreateSchema()
+        protected override void Update(double deltaTime)
         {
-            Schema schema = base.CreateSchema();
-            schema.Load<PhysicsSchemaBank>();
-            schema.Load<TransformsSchemaBank>();
-            schema.Load<PhysicsSystemsTestsSchemaBank>();
-            return schema;
+            Simulator.Broadcast(new TransformUpdate());
+            Simulator.Broadcast(new PhysicsUpdate(deltaTime));
+            Simulator.Broadcast(new TransformUpdate());
         }
     }
 }
