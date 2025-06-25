@@ -33,6 +33,7 @@ namespace Physics.Systems
         private readonly int bodyType;
         private readonly int ltwType;
         private readonly int linearVelocityType;
+        private readonly int angularVelocityType;
 
         public PhysicsSystem(Simulator simulator, World world) : base(simulator)
         {
@@ -58,6 +59,7 @@ namespace Physics.Systems
             bodyType = schema.GetComponentType<IsBody>();
             ltwType = schema.GetComponentType<LocalToWorld>();
             linearVelocityType = schema.GetComponentType<LinearVelocity>();
+            angularVelocityType = schema.GetComponentType<AngularVelocity>();
         }
 
         public override void Dispose()
@@ -175,23 +177,35 @@ namespace Physics.Systems
 
         private void AddMissingComponents()
         {
-            //make sure linear velocity exists
-            ComponentQuery<IsBody> bodiesWithoutVelocityQuery = new(world);
-            bodiesWithoutVelocityQuery.ExcludeComponent<LinearVelocity>();
             bool changed = false;
-            foreach (var r in bodiesWithoutVelocityQuery)
+
+            //make sure linear velocity exists
+            //todo: decide if detecting dynamic bodies should be possible with a tag, because thatd make this cheaper
+            ReadOnlySpan<Chunk> chunks = world.Chunks;
+            for (int c = 0; c < chunks.Length; c++)
             {
-                ref IsBody body = ref r.component1;
-                if (body.type == BodyType.Dynamic)
+                Chunk chunk = chunks[c];
+                BitMask componentTypes = chunk.Definition.componentTypes;
+                if (componentTypes.Contains(bodyType) && (!componentTypes.Contains(linearVelocityType) || !componentTypes.Contains(angularVelocityType)))
                 {
-                    operation.AppendEntityToSelection(r.entity);
-                    changed = true;
+                    ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
+                    int entityCount = chunk.Count;
+                    for (int i = 0; i < entityCount; i++)
+                    {
+                        ref IsBody body = ref bodies[i];
+                        if (body.type == BodyType.Dynamic)
+                        {
+                            operation.AppendEntityToSelection(chunk.Entities[i]);
+                            changed = true;
+                        }
+                    }
                 }
             }
 
             if (changed)
             {
-                operation.AddComponentType<LinearVelocity>();
+                operation.TryAddComponentType<LinearVelocity>();
+                operation.TryAddComponentType<AngularVelocity>();
                 operation.ClearSelection();
                 changed = false;
             }
