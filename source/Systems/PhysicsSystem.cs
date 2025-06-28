@@ -25,15 +25,20 @@ namespace Physics.Systems
         private readonly Dictionary<uint, CompiledBody> bodies;
         private readonly Dictionary<uint, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
-        private readonly List<(Vector3, float, float)> pointGravitySources;
+        private readonly List<PointGravitySource> pointGravitySources;
         private readonly BepuPhysics.Simulation bepuSimulation;
         private readonly BepuBufferPool bufferPool;
         private readonly MemoryAddress gravity;
         private readonly Operation operation;
         private readonly int bodyType;
         private readonly int ltwType;
+        private readonly int gravitySourceType;
+        private readonly int positionType;
+        private readonly int rotationType;
         private readonly int linearVelocityType;
         private readonly int angularVelocityType;
+        private readonly int directionalGravityTag;
+        private readonly int pointGravityType;
 
         public PhysicsSystem(Simulator simulator, World world) : base(simulator)
         {
@@ -58,8 +63,13 @@ namespace Physics.Systems
             Schema schema = world.Schema;
             bodyType = schema.GetComponentType<IsBody>();
             ltwType = schema.GetComponentType<LocalToWorld>();
+            gravitySourceType = schema.GetComponentType<IsGravitySource>();
+            positionType = schema.GetComponentType<Position>();
+            rotationType = schema.GetComponentType<Rotation>();
             linearVelocityType = schema.GetComponentType<LinearVelocity>();
             angularVelocityType = schema.GetComponentType<AngularVelocity>();
+            directionalGravityTag = schema.GetTagType<IsDirectionalGravity>();
+            pointGravityType = schema.GetComponentType<IsPointGravity>();
         }
 
         public override void Dispose()
@@ -119,11 +129,38 @@ namespace Physics.Systems
 
         private void ApplyPointGravity(double deltaTime)
         {
-            FindPointGravitySources();
+            ReadOnlySpan<Chunk> chunks = world.Chunks;
             BitMask bodyComponents = new(bodyType, ltwType, linearVelocityType);
-            foreach (Chunk chunk in world.Chunks)
+            BitMask pointGravityComponents = new(gravitySourceType, ltwType, pointGravityType);
+
+            //find point gravity sources first
+            pointGravitySources.Clear();
+            for (int c = 0; c < chunks.Length; c++)
             {
-                if (chunk.Definition.componentTypes.ContainsAll(bodyComponents))
+                Chunk chunk = chunks[c];
+                Definition definition = chunk.Definition;
+                if (definition.IsEnabled && definition.componentTypes.ContainsAll(pointGravityComponents))
+                {
+                    ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
+                    ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
+                    ComponentEnumerator<IsPointGravity> pointGravities = chunk.GetComponents<IsPointGravity>(pointGravityType);
+                    for (int i = 0; i < chunk.Count; i++)
+                    {
+                        ref IsGravitySource gravitySource = ref gravitySources[i];
+                        ref LocalToWorld ltw = ref ltws[i];
+                        ref IsPointGravity pointGravity = ref pointGravities[i];
+                        pointGravitySources.Add(new(ltw.Position, gravitySource.force, pointGravity.radius));
+                    }
+                }
+            }
+
+            //apply gravity
+            Span<PointGravitySource> pointGravitySourcesSpan = pointGravitySources.AsSpan();
+            for (int c = 0; c < chunks.Length; c++)
+            {
+                Chunk chunk = chunks[c];
+                Definition definition = chunk.Definition;
+                if (definition.IsEnabled && definition.componentTypes.ContainsAll(bodyComponents))
                 {
                     int entityCount = chunk.Count;
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
@@ -138,16 +175,17 @@ namespace Physics.Systems
                         {
                             Vector3 accumulatedGravity = default;
                             Vector3 worldPosition = ltw.Position;
-                            foreach ((Vector3 sourcePosition, float force, float radius) in pointGravitySources)
+                            for (int s = 0; s < pointGravitySourcesSpan.Length; s++)
                             {
-                                Vector3 offset = worldPosition - sourcePosition;
+                                PointGravitySource pointGravitySource = pointGravitySourcesSpan[s];
+                                Vector3 offset = worldPosition - pointGravitySource.position;
                                 float distanceSquared = offset.LengthSquared();
-                                if (distanceSquared < radius * radius)
+                                if (distanceSquared < pointGravitySource.radiusSquared)
                                 {
                                     float distance = MathF.Sqrt(distanceSquared);
-                                    float attenuation = 1f - MathF.Min(distance / radius, 1f);
+                                    float attenuation = 1f - MathF.Min(distance / pointGravitySource.radius, 1f);
                                     Vector3 direction = Vector3.Normalize(offset);
-                                    accumulatedGravity += direction * force * attenuation;
+                                    accumulatedGravity += direction * pointGravitySource.force * attenuation;
                                 }
                             }
 
@@ -162,31 +200,17 @@ namespace Physics.Systems
             }
         }
 
-        private void FindPointGravitySources()
-        {
-            pointGravitySources.Clear();
-            ComponentQuery<IsGravitySource, IsPointGravity, LocalToWorld> pointGravityQuery = new(world);
-            foreach (var r in pointGravityQuery)
-            {
-                ref IsGravitySource gravitySource = ref r.component1;
-                ref IsPointGravity pointGravity = ref r.component2;
-                ref LocalToWorld ltw = ref r.component3;
-                pointGravitySources.Add((ltw.Position, gravitySource.force, pointGravity.radius));
-            }
-        }
-
         private void AddMissingComponents()
         {
-            bool changed = false;
-
             //make sure linear velocity exists
             //todo: decide if detecting dynamic bodies should be possible with a tag, because thatd make this cheaper
             ReadOnlySpan<Chunk> chunks = world.Chunks;
+            BitMask dynamicComponentTypes = new(linearVelocityType, angularVelocityType, positionType, rotationType);
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
                 BitMask componentTypes = chunk.Definition.componentTypes;
-                if (componentTypes.Contains(bodyType) && (!componentTypes.Contains(linearVelocityType) || !componentTypes.Contains(angularVelocityType)))
+                if (componentTypes.Contains(bodyType) && !componentTypes.ContainsAny(dynamicComponentTypes))
                 {
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
                     int entityCount = chunk.Count;
@@ -196,81 +220,18 @@ namespace Physics.Systems
                         if (body.type == BodyType.Dynamic)
                         {
                             operation.AppendEntityToSelection(chunk.Entities[i]);
-                            changed = true;
                         }
                     }
                 }
             }
 
-            if (changed)
+            if (operation.Count > 0)
             {
-                operation.TryAddComponentType<LinearVelocity>();
-                operation.TryAddComponentType<AngularVelocity>();
-                operation.ClearSelection();
-                changed = false;
-            }
-
-            //make sure angular velocity is present
-            ComponentQuery<IsBody> bodeiesWithoutAngularVelocity = new(world);
-            bodeiesWithoutAngularVelocity.ExcludeComponent<AngularVelocity>();
-            foreach (var r in bodeiesWithoutAngularVelocity)
-            {
-                ref IsBody body = ref r.component1;
-                if (body.type == BodyType.Dynamic)
-                {
-                    operation.AppendEntityToSelection(r.entity);
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                operation.AddComponentType<AngularVelocity>();
-                operation.ClearSelection();
-                changed = false;
-            }
-
-            //make sure position exists
-            ComponentQuery<IsBody, LocalToWorld> positionMissingQuery = new(world);
-            positionMissingQuery.ExcludeComponent<Position>();
-            foreach (var r in positionMissingQuery)
-            {
-                ref IsBody body = ref r.component1;
-                if (body.type != BodyType.Static)
-                {
-                    operation.AppendEntityToSelection(r.entity);
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                operation.AddComponentType<Position>();
-                operation.ClearSelection();
-                changed = false;
-            }
-
-            //make sure rotation exists
-            ComponentQuery<IsBody, LocalToWorld> rotationMissingQuery = new(world);
-            rotationMissingQuery.ExcludeComponent<Rotation>();
-            foreach (var r in rotationMissingQuery)
-            {
-                ref IsBody body = ref r.component1;
-                if (body.type != BodyType.Static)
-                {
-                    operation.AppendEntityToSelection(r.entity);
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                operation.AddComponentType<Rotation>();
-                operation.ClearSelection();
-            }
-
-            if (operation.TryPerform())
-            {
+                operation.TryAddComponentType(linearVelocityType);
+                operation.TryAddComponentType(angularVelocityType);
+                operation.TryAddComponentType(positionType);
+                operation.TryAddComponentType(rotationType);
+                operation.Perform();
                 operation.Reset();
             }
         }
@@ -597,13 +558,23 @@ namespace Physics.Systems
         private Vector3 GetGlobalGravity()
         {
             Vector3 totalGravity = default;
-            ComponentQuery<IsGravitySource, LocalToWorld> directionalGravityQuery = new(world);
-            directionalGravityQuery.RequireTag<IsDirectionalGravity>();
-            foreach (var r in directionalGravityQuery)
+            ReadOnlySpan<Chunk> chunks = world.Chunks;
+            BitMask componentTypes = new(gravitySourceType, ltwType);
+            for (int c = 0; c < chunks.Length; c++)
             {
-                ref IsGravitySource gravitySource = ref r.component1;
-                ref LocalToWorld ltw = ref r.component2;
-                totalGravity += ltw.Forward * gravitySource.force;
+                Chunk chunk = chunks[c];
+                Definition definition = chunk.Definition;
+                if (!definition.IsDisabled && definition.tagTypes.Contains(directionalGravityTag) && definition.componentTypes.ContainsAll(componentTypes))
+                {
+                    ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
+                    ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
+                    for (int i = 0; i < chunk.Count; i++)
+                    {
+                        ref IsGravitySource gravitySource = ref gravitySources[i];
+                        ref LocalToWorld ltw = ref ltws[i];
+                        totalGravity += ltw.Forward * gravitySource.force;
+                    }
+                }
             }
 
             return totalGravity;
