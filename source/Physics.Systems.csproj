@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -19,25 +19,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BepuPhysics" Version="2.5.0-beta.26" />
+    <PackageReference Include="BepuPhysics" Version="2.5.0-beta.26"/>
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\physics\source\Physics.csproj" />
-    <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj" />
-    <ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
-      <OutputItemType>Analyzer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
-    <ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
-      <OutputItemType>Analyzer</OutputItemType>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
+    <ProjectReference Include="..\..\physics\source\Physics.csproj"/>
+    <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="bin/**/*" Pack="true" PackagePath="lib" Visible="false" />
-    <Content Include="buildTransitive/**/*" Pack="true" PackagePath="buildTransitive" />
+    <Analyzer Include="..\..\unmanaged\generator\bin\$(Configuration)\netstandard2.0\Unmanaged.Generator.dll"/>
+    <Analyzer Include="..\..\worlds\generator\bin\$(Configuration)\netstandard2.0\Worlds.Generator.dll"/>
+    <Analyzer Include="..\..\types\generator\bin\$(Configuration)\netstandard2.0\Types.Generator.dll"/>
+    <Analyzer Include="..\..\simulation\generator\bin\$(Configuration)\netstandard2.0\Simulation.Generator.dll"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="bin/**/*" Pack="true" PackagePath="lib" Visible="false"/>
+    <Content Include="buildTransitive/**/*" Pack="true" PackagePath="buildTransitive"/>
   </ItemGroup>
 
 </Project>

@@ -420,7 +420,6 @@ namespace Physics.Systems
             {
                 CompiledBody body = bodies[bodyEntity];
                 IsBody component = world.GetComponent<IsBody>(bodyEntity, bodyType);
-                Shape shape = component.shape;
                 bool isStatic = body.type == BodyType.Static;
                 LocalToWorld ltw = world.GetComponent<LocalToWorld>(bodyEntity, ltwType);
                 Vector3 localOffset = component.offset;

@@ -1,48 +1,47 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
-	<PropertyGroup>
-		<TargetFramework>net9.0</TargetFramework>
-		<RootNamespace>Physics.Tests</RootNamespace>
-		<ImplicitUsings>disable</ImplicitUsings>
-		<Nullable>enable</Nullable>
-		<IsPackable>false</IsPackable>
-		<IsTestProject>true</IsTestProject>
-		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	</PropertyGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Physics.Tests</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="coverlet.collector" Version="6.0.4">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-		<PackageReference Include="NUnit" Version="4.4.0-beta.1" />
-		<PackageReference Include="NUnit.Analyzers" Version="4.9.2">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="NUnit3TestAdapter" Version="5.1.0-alpha.3" />
-	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/>
+    <PackageReference Include="NUnit" Version="4.4.0-beta.1"/>
+    <PackageReference Include="NUnit.Analyzers" Version="4.10.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter" Version="5.1.0-alpha.3"/>
+  </ItemGroup>
 
-	<ItemGroup>
-		<ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj" />
-		<ProjectReference Include="..\..\simulation\tests\Simulation.Tests.csproj" />
-		<ProjectReference Include="..\..\transform-systems\source\Transforms.Systems.csproj" />
-		<ProjectReference Include="..\..\unmanaged\core\Unmanaged.Core.csproj" />
-		<ProjectReference Include="..\..\unmanaged\tests\Unmanaged.Tests.csproj" />
-		<ProjectReference Include="..\source\Physics.Systems.csproj" />
-		<ProjectReference Include="..\..\simulation\generator\Simulation.Generator.csproj">
-			<OutputItemType>Analyzer</OutputItemType>
-			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-		</ProjectReference>
-		<ProjectReference Include="..\..\worlds\generator\Worlds.Generator.csproj">
-			<OutputItemType>Analyzer</OutputItemType>
-			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-		</ProjectReference>
-	</ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\simulation\core\Simulation.Core.csproj"/>
+    <ProjectReference Include="..\..\simulation\tests\Simulation.Tests.csproj"/>
+    <ProjectReference Include="..\..\transform-systems\source\Transforms.Systems.csproj"/>
+    <ProjectReference Include="..\..\unmanaged\core\Unmanaged.Core.csproj"/>
+    <ProjectReference Include="..\..\unmanaged\tests\Unmanaged.Tests.csproj"/>
+    <ProjectReference Include="..\source\Physics.Systems.csproj"/>
+  </ItemGroup>
 
-	<ItemGroup>
-		<Using Include="NUnit.Framework" />
-	</ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="..\..\unmanaged\generator\bin\$(Configuration)\netstandard2.0\Unmanaged.Generator.dll"/>
+    <Analyzer Include="..\..\worlds\generator\bin\$(Configuration)\netstandard2.0\Worlds.Generator.dll"/>
+    <Analyzer Include="..\..\types\generator\bin\$(Configuration)\netstandard2.0\Types.Generator.dll"/>
+    <Analyzer Include="..\..\simulation\generator\bin\$(Configuration)\netstandard2.0\Simulation.Generator.dll"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="NUnit.Framework"/>
+  </ItemGroup>
 
 </Project>
