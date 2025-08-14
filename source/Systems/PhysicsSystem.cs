@@ -21,7 +21,7 @@ namespace Physics.Systems
         private readonly List<RaycastHit> hits;
         private readonly List<uint> toRemove;
         private readonly List<uint> usedShapes;
-        private readonly Array<BodyState> physicsObjectState;
+        private readonly Array<PhysicsObjectState> physicsObjectStates;
         private readonly Dictionary<uint, CompiledBody> bodies;
         private readonly Dictionary<uint, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
@@ -53,7 +53,7 @@ namespace Physics.Systems
             hits = new();
             toRemove = new();
             usedShapes = new();
-            physicsObjectState = new();
+            physicsObjectStates = new();
             bodies = new();
             shapes = new();
             handleToBody = new();
@@ -90,7 +90,7 @@ namespace Physics.Systems
             handleToBody.Dispose();
             shapes.Dispose();
             bodies.Dispose();
-            physicsObjectState.Dispose();
+            physicsObjectStates.Dispose();
             bepuSimulation.Dispose();
             bufferPool.Dispose();
             gravity.Dispose();
@@ -117,14 +117,30 @@ namespace Physics.Systems
             gravity.Write(GetGlobalGravity());
             AddMissingComponents();
             ApplyPointGravity(message.deltaTime);
-            CreateAndDestroyPhysicsObjects();
+
+            // create shapes and bodies for entities that dont have them yet
+            int capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
+            int currentLength = this.physicsObjectStates.Length;
+            if (currentLength < capacity)
+            {
+                this.physicsObjectStates.Length = capacity;
+
+                // reset the new entires to default
+                for (int i = currentLength; i < capacity; i++)
+                {
+                    this.physicsObjectStates[i] = default;
+                }
+            }
+
+            Span<PhysicsObjectState> physicsObjectStates = this.physicsObjectStates.AsSpan();
+            CreateAndDestroyPhysicsObjects(physicsObjectStates);
 
             if (message.deltaTime > 0)
             {
                 bepuSimulation.Timestep((float)message.deltaTime);
             }
 
-            CopyPhysicsObjectStateToEntities(bodyType, ltwType);
+            CopyPhysicsObjectStateToEntities(physicsObjectStates);
         }
 
         private void ApplyPointGravity(double deltaTime)
@@ -241,7 +257,7 @@ namespace Physics.Systems
             return handleToBody[(handle, isStatic)];
         }
 
-        private void CreateAndDestroyPhysicsObjects()
+        private void CreateAndDestroyPhysicsObjects(Span<PhysicsObjectState> physicsObjectStates)
         {
             //remove shapes and bodies of entities that dont exist anymore
             toRemove.Clear();
@@ -261,7 +277,7 @@ namespace Physics.Systems
                         bepuSimulation.Bodies.Remove(body.DynamicBody);
                     }
 
-                    physicsObjectState[(int)bodyEntity] = default;
+                    physicsObjectStates[(int)bodyEntity] = default;
                     body.Dispose();
                     toRemove.Add(bodyEntity);
                 }
@@ -270,13 +286,6 @@ namespace Physics.Systems
             foreach (uint bodyEntity in toRemove)
             {
                 bodies.Remove(bodyEntity);
-            }
-
-            //create shapes and bodies for entities that dont have them yet
-            int capacity = (world.MaxEntityValue + 1).GetNextPowerOf2();
-            if (physicsObjectState.Length < capacity)
-            {
-                physicsObjectState.Length = capacity;
             }
 
             usedShapes.Clear();
@@ -329,6 +338,7 @@ namespace Physics.Systems
                 usedShapes.Add(shapeHash);
 
                 //make sure a physics body exists for this combination of (shape, type)
+                ref PhysicsObjectState state = ref physicsObjectStates[(int)entity];
                 bool isStatic = type == BodyType.Static;
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
                 Vector3 desiredWorldPosition = worldPosition + worldOffset;
@@ -338,6 +348,10 @@ namespace Physics.Systems
                     compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
                     bodies.Add(entity, compiledBody);
                     handleToBody.Add((compiledBody.handle, isStatic), entity);
+                    state.position = desiredWorldPosition;
+                    state.rotation = desiredWorldRotation;
+                    state.linearVelocity = Vector3.Zero;
+                    state.angularVelocity = Vector3.Zero;
                 }
                 else if (compiledBody.version != body.version || compiledBody.type != type || newShape)
                 {
@@ -356,10 +370,13 @@ namespace Physics.Systems
                     isStatic = compiledBody.type == BodyType.Static;
                     bodies[entity] = compiledBody;
                     handleToBody.Add((compiledBody.handle, isStatic), entity);
+                    state.position = desiredWorldPosition;
+                    state.rotation = desiredWorldRotation;
+                    state.linearVelocity = Vector3.Zero;
+                    state.angularVelocity = Vector3.Zero;
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
-                ref BodyState state = ref physicsObjectState[(int)entity];
                 if (isStatic)
                 {
                     StaticReference staticReference = bepuSimulation.Statics.GetStaticReference(compiledBody.StaticBody);
@@ -414,7 +431,7 @@ namespace Physics.Systems
             }
         }
 
-        private void CopyPhysicsObjectStateToEntities(int bodyType, int ltwType)
+        private void CopyPhysicsObjectStateToEntities(Span<PhysicsObjectState> physicsObjectStates)
         {
             foreach (uint bodyEntity in bodies.Keys)
             {
@@ -430,7 +447,7 @@ namespace Physics.Systems
                     StaticDescription description = staticReference.GetDescription();
                     Vector3 finalWorldPosition = description.Pose.Position - worldOffset;
                     Quaternion finalWorldRotation = description.Pose.Orientation;
-                    physicsObjectState[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
+                    physicsObjectStates[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, Vector3.Zero, Vector3.Zero);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))
@@ -477,7 +494,7 @@ namespace Physics.Systems
 
                     ref AngularVelocity angularVelocity = ref world.GetComponent<AngularVelocity>(bodyEntity);
                     angularVelocity.value = velocity.Angular;
-                    physicsObjectState[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
+                    physicsObjectStates[(int)bodyEntity] = new(finalWorldPosition, finalWorldRotation, velocity.Linear, velocity.Angular);
 
                     //copy bounds
                     if (!world.ContainsComponent<WorldBounds>(bodyEntity))

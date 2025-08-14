@@ -18,6 +18,11 @@ namespace Physics.Systems
         {
             BufferPool bufferPool = this;
             bufferPool.Clear();
+            if (bufferPool is IDisposable disposableBufferPool)
+            {
+                disposableBufferPool.Dispose();
+            }
+
             handle.Free();
         }
 
