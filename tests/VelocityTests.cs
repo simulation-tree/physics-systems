@@ -115,12 +115,12 @@ namespace Physics.Tests
 
             Update(4);
 
-            Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(5f).Within(0.1f));
-
             Transform floorTransform = platform;
             Assert.That(floorTransform.WorldPosition.X, Is.EqualTo(0f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Y, Is.EqualTo(4f).Within(0.1f));
             Assert.That(floorTransform.WorldPosition.Z, Is.EqualTo(0f).Within(0.1f));
+
+            Assert.That(ballTransform.WorldPosition.Y, Is.EqualTo(5f).Within(0.1f));
         }
 
         [Test]
