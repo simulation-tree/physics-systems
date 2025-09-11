@@ -39,6 +39,7 @@ namespace Physics.Systems
         private readonly int angularVelocityType;
         private readonly int directionalGravityTag;
         private readonly int pointGravityType;
+        private RaycastHandler handler;
 
         public PhysicsSystem(Simulator simulator, World world) : base(simulator)
         {
@@ -50,6 +51,7 @@ namespace Physics.Systems
             SolveDescription solveDescription = new(8, 1);
             bepuSimulation = BepuPhysics.Simulation.Create(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
+            handler = new(hits, this);
             hits = new();
             toRemove = new();
             usedShapes = new();
@@ -101,8 +103,7 @@ namespace Physics.Systems
 
         void IListener<RaycastRequest>.Receive(ref RaycastRequest raycast)
         {
-            RaycastHandler handler = new(hits, this);
-            bepuSimulation.RayCast(raycast.origin, raycast.direction, raycast.distance, ref handler);
+            bepuSimulation.RayCast(raycast.origin, raycast.direction, raycast.distance, bufferPool, ref handler);
             if (raycast.callback != default)
             {
                 //todo: whats the point of raycasting if theres no callback given?
