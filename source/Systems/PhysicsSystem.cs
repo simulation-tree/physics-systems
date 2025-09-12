@@ -22,6 +22,7 @@ namespace Physics.Systems
         private readonly List<uint> toRemove;
         private readonly List<uint> usedShapes;
         private readonly Array<PhysicsObjectState> physicsObjectStates;
+        private readonly List<uint> bodyEntities;
         private readonly Dictionary<uint, CompiledBody> bodies;
         private readonly Dictionary<uint, CompiledShape> shapes;
         private readonly Dictionary<(int, bool), uint> handleToBody;
@@ -51,11 +52,12 @@ namespace Physics.Systems
             SolveDescription solveDescription = new(8, 1);
             bepuSimulation = BepuPhysics.Simulation.Create(bufferPool, narrowPhaseCallbacks, poseIntegratorCallbacks, solveDescription);
 
-            handler = new(hits, this);
             hits = new();
+            handler = new(hits, this);
             toRemove = new();
             usedShapes = new();
             physicsObjectStates = new();
+            bodyEntities = new();
             bodies = new();
             shapes = new();
             handleToBody = new();
@@ -92,6 +94,7 @@ namespace Physics.Systems
             handleToBody.Dispose();
             shapes.Dispose();
             bodies.Dispose();
+            bodyEntities.Dispose();
             physicsObjectStates.Dispose();
             bepuSimulation.Dispose();
             bufferPool.Dispose();
@@ -262,8 +265,10 @@ namespace Physics.Systems
         {
             //remove shapes and bodies of entities that dont exist anymore
             toRemove.Clear();
-            foreach (uint bodyEntity in bodies.Keys)
+            Span<uint> bodyEntitiesSpan = bodyEntities.AsSpan();
+            for (int i = 0; i < bodyEntitiesSpan.Length; i++)
             {
+                uint bodyEntity = bodyEntitiesSpan[i];
                 if (!world.ContainsEntity(bodyEntity))
                 {
                     CompiledBody body = bodies[bodyEntity];
@@ -284,13 +289,16 @@ namespace Physics.Systems
                 }
             }
 
-            foreach (uint bodyEntity in toRemove)
+            Span<uint> toRemoveSpan = toRemove.AsSpan();
+            for (int i = 0; i < toRemoveSpan.Length; i++)
             {
+                uint bodyEntity = toRemoveSpan[i];
                 bodies.Remove(bodyEntity);
+                bodyEntities.Remove(bodyEntity);
             }
 
             usedShapes.Clear();
-
+            bodyEntitiesSpan = bodyEntities.AsSpan();
             ComponentQuery<IsBody, LocalToWorld, WorldRotation> bodyQuery = new(world);
             foreach (var r in bodyQuery)
             {
@@ -344,37 +352,43 @@ namespace Physics.Systems
                 Vector3 worldOffset = Vector3.Transform(localOffset, ltwRotation);
                 Vector3 desiredWorldPosition = worldPosition + worldOffset;
                 Quaternion desiredWorldRotation = worldRotation.value;
-                if (!bodies.TryGetValue(entity, out CompiledBody compiledBody))
+                CompiledBody compiledBody;
+                if (!bodyEntitiesSpan.Contains(entity))
                 {
                     compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
                     bodies.Add(entity, compiledBody);
+                    bodyEntities.Add(entity);
                     handleToBody.Add((compiledBody.handle, isStatic), entity);
                     state.position = desiredWorldPosition;
                     state.rotation = desiredWorldRotation;
                     state.linearVelocity = Vector3.Zero;
                     state.angularVelocity = Vector3.Zero;
                 }
-                else if (compiledBody.version != body.version || compiledBody.type != type || newShape)
+                else
                 {
-                    handleToBody.Remove((compiledBody.handle, isStatic));
-                    if (isStatic)
+                    compiledBody = bodies[entity];
+                    if (compiledBody.version != body.version || compiledBody.type != type || newShape)
                     {
-                        bepuSimulation.Statics.Remove(compiledBody.StaticBody);
-                    }
-                    else
-                    {
-                        bepuSimulation.Bodies.Remove(compiledBody.DynamicBody);
-                    }
+                        handleToBody.Remove((compiledBody.handle, isStatic));
+                        if (isStatic)
+                        {
+                            bepuSimulation.Statics.Remove(compiledBody.StaticBody);
+                        }
+                        else
+                        {
+                            bepuSimulation.Bodies.Remove(compiledBody.DynamicBody);
+                        }
 
-                    compiledBody.Dispose();
-                    compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
-                    isStatic = compiledBody.type == BodyType.Static;
-                    bodies[entity] = compiledBody;
-                    handleToBody.Add((compiledBody.handle, isStatic), entity);
-                    state.position = desiredWorldPosition;
-                    state.rotation = desiredWorldRotation;
-                    state.linearVelocity = Vector3.Zero;
-                    state.angularVelocity = Vector3.Zero;
+                        compiledBody.Dispose();
+                        compiledBody = CreateBody(body, compiledShape, desiredWorldPosition, desiredWorldRotation);
+                        isStatic = compiledBody.type == BodyType.Static;
+                        bodies[entity] = compiledBody;
+                        handleToBody.Add((compiledBody.handle, isStatic), entity);
+                        state.position = desiredWorldPosition;
+                        state.rotation = desiredWorldRotation;
+                        state.linearVelocity = Vector3.Zero;
+                        state.angularVelocity = Vector3.Zero;
+                    }
                 }
 
                 //copy values from entity onto physics object (if different from last known state)
@@ -416,16 +430,19 @@ namespace Physics.Systems
 
             //remove shapes that are no longer used
             toRemove.Clear();
+            Span<uint> usedShapesSpan = usedShapes.AsSpan();
             foreach (uint shapeHash in shapes.Keys)
             {
-                if (!usedShapes.Contains(shapeHash))
+                if (!usedShapesSpan.Contains(shapeHash))
                 {
                     toRemove.Add(shapeHash);
                 }
             }
 
-            foreach (uint shapeHash in toRemove)
+            toRemoveSpan = toRemove.AsSpan();
+            for (int i = 0; i < toRemoveSpan.Length; i++)
             {
+                uint shapeHash = toRemoveSpan[i];
                 shapes.Remove(shapeHash, out CompiledShape shape);
                 bepuSimulation.Shapes.Remove(shape.shapeIndex);
                 shape.Dispose();
@@ -434,8 +451,10 @@ namespace Physics.Systems
 
         private void CopyPhysicsObjectStateToEntities(Span<PhysicsObjectState> physicsObjectStates)
         {
-            foreach (uint bodyEntity in bodies.Keys)
+            Span<uint> bodyEntitiesSpan = bodyEntities.AsSpan();
+            for (int i = 0; i < bodyEntitiesSpan.Length; i++)
             {
+                uint bodyEntity = bodyEntitiesSpan[i];
                 CompiledBody body = bodies[bodyEntity];
                 IsBody component = world.GetComponent<IsBody>(bodyEntity, bodyType);
                 bool isStatic = body.type == BodyType.Static;
