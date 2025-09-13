@@ -158,8 +158,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                Definition definition = chunk.Definition;
-                if (definition.IsEnabled && definition.componentTypes.ContainsAll(pointGravityComponents))
+                if (chunk.IsEnabled && chunk.componentTypes.ContainsAll(pointGravityComponents))
                 {
                     ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
                     ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
@@ -179,8 +178,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                Definition definition = chunk.Definition;
-                if (definition.IsEnabled && definition.componentTypes.ContainsAll(bodyComponents))
+                if (chunk.IsEnabled && chunk.componentTypes.ContainsAll(bodyComponents))
                 {
                     int entityCount = chunk.Count;
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
@@ -229,8 +227,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                BitMask componentTypes = chunk.Definition.componentTypes;
-                if (componentTypes.Contains(bodyType) && !componentTypes.ContainsAny(dynamicComponentTypes))
+                if (chunk.componentTypes.Contains(bodyType) && !chunk.componentTypes.ContainsAny(dynamicComponentTypes))
                 {
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
                     int entityCount = chunk.Count;
@@ -599,8 +596,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                Definition definition = chunk.Definition;
-                if (!definition.IsDisabled && definition.tagTypes.Contains(directionalGravityTag) && definition.componentTypes.ContainsAll(componentTypes))
+                if (!chunk.IsDisabled && chunk.tagTypes.Contains(directionalGravityTag) && chunk.componentTypes.ContainsAll(componentTypes))
                 {
                     ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
                     ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
