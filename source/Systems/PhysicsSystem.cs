@@ -618,16 +618,13 @@ namespace Physics.Systems
 
         private static uint GetHash(Shape shape, Vector3 offset, BodyType type, Vector3 scale, float mass)
         {
-            unchecked
-            {
-                int hash = 17;
-                hash = hash * 23 + shape.GetHashCode();
-                hash = hash * 23 + offset.GetHashCode();
-                hash = hash * 23 + type.GetHashCode();
-                hash = hash * 23 + scale.GetHashCode();
-                hash = hash * 23 + mass.GetHashCode();
-                return (uint)hash;
-            }
+            int hash = 17;
+            hash = hash * 23 + shape.GetHashCode();
+            hash = hash * 23 + offset.GetHashCode();
+            hash = hash * 23 + type.GetHashCode();
+            hash = hash * 23 + scale.GetHashCode();
+            hash = hash * 23 + mass.GetHashCode();
+            return (uint)hash;
         }
     }
 }
