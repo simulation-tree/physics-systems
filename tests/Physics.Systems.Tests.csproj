@@ -8,6 +8,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PackageId>SimulationTree.Physics.Systems.Tests</PackageId>
   </PropertyGroup>
 
   <ItemGroup>
