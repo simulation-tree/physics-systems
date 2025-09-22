@@ -158,7 +158,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.IsEnabled && chunk.componentTypes.ContainsAll(pointGravityComponents))
+                if (chunk.IsEnabled && chunk.ComponentTypes.ContainsAll(pointGravityComponents))
                 {
                     ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
                     ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
@@ -178,7 +178,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.IsEnabled && chunk.componentTypes.ContainsAll(bodyComponents))
+                if (chunk.IsEnabled && chunk.ComponentTypes.ContainsAll(bodyComponents))
                 {
                     int entityCount = chunk.Count;
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
@@ -227,7 +227,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (chunk.componentTypes.Contains(bodyType) && !chunk.componentTypes.ContainsAny(dynamicComponentTypes))
+                if (chunk.ComponentTypes.Contains(bodyType) && !chunk.ComponentTypes.ContainsAny(dynamicComponentTypes))
                 {
                     ComponentEnumerator<IsBody> bodies = chunk.GetComponents<IsBody>(bodyType);
                     int entityCount = chunk.Count;
@@ -596,7 +596,7 @@ namespace Physics.Systems
             for (int c = 0; c < chunks.Length; c++)
             {
                 Chunk chunk = chunks[c];
-                if (!chunk.IsDisabled && chunk.tagTypes.Contains(directionalGravityTag) && chunk.componentTypes.ContainsAll(componentTypes))
+                if (!chunk.IsDisabled && chunk.TagTypes.Contains(directionalGravityTag) && chunk.ComponentTypes.ContainsAll(componentTypes))
                 {
                     ComponentEnumerator<IsGravitySource> gravitySources = chunk.GetComponents<IsGravitySource>(gravitySourceType);
                     ComponentEnumerator<LocalToWorld> ltws = chunk.GetComponents<LocalToWorld>(ltwType);
